@@ -1,7 +1,12 @@
 package smally.server.domain.user.repository;
 
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
-import smally.server.domain.user.entity.dto.User;
+import smally.server.domain.user.entity.User;
 
 public interface UserRepository extends JpaRepository<User,Long> {
+
+    Optional<User> findByEmail(String email);
+
+    boolean existsByEmail(String email);
 }

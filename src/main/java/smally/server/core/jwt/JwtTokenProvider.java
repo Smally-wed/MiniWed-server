@@ -70,6 +70,11 @@ public class JwtTokenProvider {
         }
     }
 
+    /** 토큰의 subject(userId)를 꺼낸다. 유효성은 호출 전에 {@link #validateToken}으로 확인한다. */
+    public Long getUserId(String token) {
+        return Long.valueOf(parseClaims(token).getSubject());
+    }
+
     /** 유효한 토큰에서 인증 객체를 만든다. principal=userId(String), 권한=ROLE_{role}. */
     public Authentication getAuthentication(String token) {
         Claims claims = parseClaims(token);

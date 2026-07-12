@@ -25,3 +25,14 @@
 - **[ADR-001](./adr/ADR-001-image-storage-s3-presigned.md) 사진 저장**: 원본은 **AWS S3**, 업로드는 **presigned URL로 클라이언트 → S3 직접 업로드**. 서버는 바이너리를 중계하지 않고 청첩장 데이터엔 S3 키/URL만 저장. 트레이드오프: 서버가 파일 내용을 못 봐 업로드 후 검증 필요, 고아 객체 정리 정책 필요.
 - **[ADR-002](./adr/ADR-002-template-schema-jsonschema-jsonb.md) 템플릿 스키마·검증·저장**: 섹션 스키마는 **JSON Schema 표준**으로 정의(템플릿 메타데이터에 저장, 라이브러리로 검증), 사용자 입력값은 **PostgreSQL jsonb 단일 컬럼**에 저장. 검증은 저장 시점. 스키마 버전 관리는 후속 과제. 트레이드오프: DB 무결성 약함(앱 검증 신뢰 전제), 관리자 등록 스키마의 메타 검증 필요.
 - **[ADR-003](./adr/ADR-003-authentication-jwt-oauth2.md) 인증/인가**: 인증은 **JWT(access+refresh)** 무상태, 로그인 수단은 **소셜(OAuth2)+자체 이메일/비밀번호 둘 다**, 하객 공개는 **조회 GET만 비인증 공개 + 무작위 슬러그 + 발행(published) 상태만 노출**, 권한은 **USER/ADMIN** 구분(템플릿 관리는 ADMIN). 트레이드오프: JWT 무효화 어려움(refresh 회전 보완), 소셜+자체 account linking 필요, 공개 조회의 민감정보 노출(무작위 슬러그·noindex로 완화).
+
+## 2026-07-13 — Spring Security + JWT 인증 구현 (ADR-003/004 구현)
+
+ADR-003/004 결정을 코드로 구현. 새 결정 없이 구현 세부만 확정.
+
+- **서명 방식 = HS256(대칭키)**. secret은 `${JWT_SECRET}`(최소 32바이트) 환경변수 주입. 만료: **access 30분(1800초) / refresh 14일(1209600초)**. RS256은 초기엔 과하다고 보고 보류.
+- **Security 설정**([config/SecurityConfig.java](../src/main/java/smally/server/config/SecurityConfig.java)): 세션 `STATELESS`, csrf·formLogin·httpBasic·logout 비활성, 현재 `anyRequest().permitAll()`(엔드포인트 정비 후 인가 규칙 축소 예정). `JwtAuthenticationFilter`가 `Bearer` 토큰을 파싱해 `SecurityContext`를 채움(principal=userId, 권한=`ROLE_{role}`).
+- **OAuth2는 미구현**(자체 이메일/비밀번호만 우선). 소셜 로그인은 후속.
+- **refresh 저장 = Redis, userId당 1개**(ADR-004). refresh 원문이 아닌 **SHA-256 해시**로 저장·대조. login=발급+저장, `/refresh`=대조 후 회전, `/logout`=키 삭제. 현재 **다중 기기 세션 미지원**(userId 키 덮어씀) — 후속 과제.
+- **auth API**: `POST /api/auth/signup|login|refresh|logout` 구현([domain/auth](../src/main/java/smally/server/domain/auth)). `/users/me`·OAuth2 엔드포인트는 아직 없음.
+- **전역 예외 처리**([core/exception](../src/main/java/smally/server/core/exception)): `BusinessException`+`ErrorCode` enum → `@RestControllerAdvice`가 명세서 §0.3 포맷(code/message)으로 응답(중복 이메일 409, 자격/토큰 불일치 401, 검증 실패 400).

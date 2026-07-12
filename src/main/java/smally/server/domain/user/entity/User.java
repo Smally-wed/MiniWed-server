@@ -1,13 +1,6 @@
-package smally.server.domain.user.entity.dto;
+package smally.server.domain.user.entity;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -16,7 +9,7 @@ import smally.server.domain.common.entity.BaseEntity;
 import smally.server.domain.user.enums.UserRole;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users" , indexes = @Index(name = "idx_user_email" , columnList = "email"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class User extends BaseEntity {
