@@ -15,7 +15,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import smally.server.domain.common.entity.BaseEntity;
-import smally.server.domain.user.entity.dto.User;
+import smally.server.domain.user.entity.User;
 
 @Entity
 @Table(
