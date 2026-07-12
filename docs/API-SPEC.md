@@ -100,7 +100,7 @@
 근거: F-AUTH-02, ADR-003(무효화 보완).
 
 - 인증: 필요
-- 서버는 해당 refresh 토큰을 `revoked` 처리.
+- 서버는 해당 refresh 토큰을 무효화한다 — Redis 키 삭제(ADR-004).
 - Response `204`
 
 ### 1.6 내 정보 — `GET /api/users/me`
