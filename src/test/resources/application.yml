@@ -1,0 +1,25 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/miniwed
+    username: test
+    password: test
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password: ""
+
+# 테스트용 JWT 설정 (실제 운영 secret 아님)
+jwt:
+  secret: test-jwt-secret-key-for-local-testing-only-1234567890
+  access-token-expiration: 1800
+  refresh-token-expiration: 1209600
