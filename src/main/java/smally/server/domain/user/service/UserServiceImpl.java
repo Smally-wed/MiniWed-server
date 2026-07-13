@@ -13,7 +13,7 @@ import smally.server.domain.user.repository.UserRepository;
 
 @Service
 @RequiredArgsConstructor
-public class UserServiceImpl implements UserService {
+public class UserServiceImpl implements UserService, InternalUserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -33,8 +33,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional(readOnly = true)
-    public UserResponse getUser(String email) {
-        return userRepository.findByEmail(email)
+    public UserResponse getUser(Long userId) {
+        return userRepository.findById(userId)
                 .map(UserResponse::from)
                 .orElseThrow(() -> new UserException(ErrorCode.USER_NOT_FOUND));
     }

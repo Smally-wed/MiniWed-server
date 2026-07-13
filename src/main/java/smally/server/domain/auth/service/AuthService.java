@@ -19,13 +19,13 @@ import smally.server.domain.auth.repository.RefreshTokenRepository;
 import smally.server.domain.user.dto.UserCreateRequest;
 import smally.server.domain.user.entity.User;
 import smally.server.domain.user.repository.UserRepository;
-import smally.server.domain.user.service.UserService;
+import smally.server.domain.user.service.InternalUserService;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
-    private final UserService userService;
+    private final InternalUserService internalUserService;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
@@ -33,7 +33,7 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
 
     public SignupResponse signup(UserCreateRequest request) {
-        return SignupResponse.from(userService.createUser(request));
+        return SignupResponse.from(internalUserService.createUser(request));
     }
 
     public TokenResponse login(LoginRequest request) {
