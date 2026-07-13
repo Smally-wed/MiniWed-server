@@ -6,6 +6,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import smally.server.domain.common.entity.BaseEntity;
+import smally.server.domain.user.dto.UserResponse;
 import smally.server.domain.user.enums.UserRole;
 
 @Entity
@@ -42,5 +43,4 @@ public class User extends BaseEntity {
         this.userRole = userRole;
         this.nickname = nickname;
     }
-
 }
