@@ -1,6 +1,6 @@
 # ADR-006: 템플릿 옵션은 두 번째 JSON Schema(options_schema)로 관리하고 프론트에 노출한다
 
-- 상태: 제안됨
+- 상태: 승인됨
 - 작성일: 2026-07-15
 - 작성자: jasmin
 - 관련 ADR: ADR-002
