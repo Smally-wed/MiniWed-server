@@ -1,8 +1,11 @@
-package smally.server.domain.template.entity.dto;
+package smally.server.domain.template.entity;
 
+import com.github.f4b6a3.uuid.UuidCreator;
 import jakarta.persistence.*;
 
 import java.util.Map;
+import java.util.UUID;
+
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -22,8 +25,8 @@ public class Template extends BaseEntity {
     @Column(name = "template_id")
     private Long id;
 
-    @Column(nullable = false, unique = true, updatable = false, length = 36)
-    private String templateUid;
+    @Column(nullable = false, unique = true, updatable = false, columnDefinition = "UUID")
+    private UUID templateUid;
 
     @Column(nullable = false)
     private String name;
@@ -50,5 +53,12 @@ public class Template extends BaseEntity {
         this.category = category;
         this.sectionSchema = sectionSchema;
         this.variants = variants;
+    }
+
+    @PrePersist
+    protected void onCreate() {
+        if (this.templateUid == null) {
+            this.templateUid = UuidCreator.getTimeOrderedEpoch();
+        }
     }
 }

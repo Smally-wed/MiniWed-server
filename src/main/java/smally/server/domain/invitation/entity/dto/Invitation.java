@@ -22,7 +22,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import smally.server.domain.common.entity.BaseEntity;
 import smally.server.domain.invitation.enums.InvitationStatus;
-import smally.server.domain.template.entity.dto.Template;
+import smally.server.domain.template.entity.Template;
 import smally.server.domain.user.entity.User;
 
 @Entity
