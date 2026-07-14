@@ -1,4 +1,4 @@
-package smally.server.domain.template.entity.dto;
+package smally.server.domain.template.entity;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
