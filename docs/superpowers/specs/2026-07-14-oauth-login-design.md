@@ -45,15 +45,22 @@ ADR-003에서 이미 "소셜 로그인(OAuth2) + 자체 계정 병행"이 승인
      - `User` **없으면** → 새 `User`(email, password=null, role=USER, nickname) 생성 후 `OauthAccount` 연결
 4. 기존 `AuthService.issueTokens(user)` 재사용해 우리 JWT(access + refresh) 발급, refresh는 기존과 동일하게 Redis에 해시 저장
 
-## 컴포넌트
+## 컴포넌트 및 패키지 배치
 
-모두 `smally.server.domain.auth` 하위에 둔다.
+도메인 개념/포트는 `domain/auth`에 두고, 외부 provider HTTP 어댑터는 그 하위 패키지로 분리한다.
+`core`에는 두지 않는다 — `core`는 `ApiResponse`·예외 프레임워크처럼 도메인 무관한 범용 플러밍이고, OAuth provider 연동은 "사용자 인증"이라는 특정 유스케이스에 종속된 외부 통합이기 때문이다. (별도 `infra` 계층 신설은 S3 연동 구현 시점에 재검토)
 
-- **`OauthProvider`** (enum: KAKAO, GOOGLE, NAVER) — path 값 파싱/검증. 미지원 값이면 에러.
-- **`OauthUserInfo`** (record: `provider`, `providerUserId`, `email`, `nickname`) — provider 응답 정규화 결과.
-- **`OauthClient`** (인터페이스) + `KakaoOauthClient` / `GoogleOauthClient` / `NaverOauthClient` — 각자 provider userinfo 호출 후 `OauthUserInfo`로 매핑. Spring `RestClient` 사용. provider별 userinfo 엔드포인트 URL은 상수 또는 설정값. 토큰 릴레이라 client secret은 서버에 불필요.
-- **`OauthClientResolver`** — `OauthProvider` enum으로 알맞은 `OauthClient` 선택 (Map<OauthProvider, OauthClient> 주입).
-- **`OauthLoginRequest`** (record: `accessToken`) — 요청 DTO.
+```
+domain/auth/oauth/          OauthProvider, OauthUserInfo, OauthClient(포트), OauthClientResolver
+domain/auth/oauth/client/   KakaoOauthClient, GoogleOauthClient, NaverOauthClient (어댑터)
+domain/auth/dto/            OauthLoginRequest
+```
+
+- **`OauthProvider`** (`domain/auth/oauth`, enum: KAKAO, GOOGLE, NAVER) — path 값 파싱/검증. 미지원 값이면 에러.
+- **`OauthUserInfo`** (`domain/auth/oauth`, record: `provider`, `providerUserId`, `email`, `nickname`) — provider 응답 정규화 결과.
+- **`OauthClient`** (`domain/auth/oauth`, 인터페이스 = 포트) + 어댑터 `KakaoOauthClient` / `GoogleOauthClient` / `NaverOauthClient` (`domain/auth/oauth/client`) — 각자 provider userinfo 호출 후 `OauthUserInfo`로 매핑. Spring `RestClient` 사용. provider별 userinfo 엔드포인트 URL은 상수 또는 설정값. 토큰 릴레이라 client secret은 서버에 불필요.
+- **`OauthClientResolver`** (`domain/auth/oauth`) — `OauthProvider` enum으로 알맞은 `OauthClient` 선택 (Map<OauthProvider, OauthClient> 주입).
+- **`OauthLoginRequest`** (`domain/auth/dto`, record: `accessToken`) — 요청 DTO.
 - **`AuthController`** — `POST /api/auth/v1/oauth/{provider}` 엔드포인트 1개 추가.
 - **`AuthService`** — `oauthLogin(OauthProvider provider, String accessToken)` 메서드 추가. 기존 `issueTokens(User)` 재사용.
 
@@ -65,7 +72,7 @@ ADR-003에서 이미 "소셜 로그인(OAuth2) + 자체 계정 병행"이 승인
 
 ## 변경 범위
 
-- **신규 파일**: `OauthProvider`, `OauthUserInfo`, `OauthClient`, `KakaoOauthClient`, `GoogleOauthClient`, `NaverOauthClient`, `OauthClientResolver`, `OauthLoginRequest`
+- **신규 파일**: `domain/auth/oauth/`(`OauthProvider`, `OauthUserInfo`, `OauthClient`, `OauthClientResolver`), `domain/auth/oauth/client/`(`KakaoOauthClient`, `GoogleOauthClient`, `NaverOauthClient`), `domain/auth/dto/OauthLoginRequest`
 - **수정**: `AuthController`(+1 엔드포인트), `AuthService`(+1 메서드), `ErrorCode`(+에러 코드)
 - **스키마 변경 없음** (`OauthAccount`, `User` 그대로)
 - **build.gradle 변경 없음**
