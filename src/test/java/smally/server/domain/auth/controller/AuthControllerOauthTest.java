@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.data.jpa.mapping.JpaMetamodelMappingContext;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -26,6 +27,7 @@ class AuthControllerOauthTest {
 
     @MockitoBean AuthService authService;
     @MockitoBean JwtTokenProvider jwtTokenProvider;
+    @MockitoBean JpaMetamodelMappingContext jpaMappingContext;
 
     @Test
     void oauthLogin_토큰을_반환한다() throws Exception {

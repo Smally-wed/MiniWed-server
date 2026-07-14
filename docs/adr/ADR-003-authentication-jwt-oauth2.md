@@ -80,6 +80,14 @@ MiniWed는 별도 프론트엔드 + REST API 서버 구조이며([docs/ARCHITECT
 - ADMIN 권한 부여 방식(초기 시드/수동 지정 등)
 - Spring Security 설정: 공개 엔드포인트(조회 GET) 화이트리스트 및 나머지 인증 요구
 
+## 2026-07-14 구현 시 확정 사항 (OAuth 소셜 로그인)
+
+설계·계획: [docs/superpowers/specs/2026-07-14-oauth-login-design.md], [docs/superpowers/plans/2026-07-14-oauth-login.md].
+
+- **OAuth 흐름 = 토큰 릴레이**: 프론트가 provider(카카오·구글·네이버) access token을 받아 `POST /api/auth/v1/oauth/{provider}`로 전달 → 서버가 provider userinfo API로 검증·정규화 후 자체 JWT 발급. (Spring `oauth2Login` 리다이렉트 방식 미사용.)
+- **account linking 정책 확정**: 소셜 이메일이 기존 User 이메일과 같으면 **provider가 이메일을 검증(`email_verified`)한 경우에만** 자동 링킹. 미검증인데 기존 User가 있으면 거부(`OAUTH_EMAIL_NOT_VERIFIED`, 409) — 미검증 이메일로 인한 계정 탈취 방지. 이메일 미제공(동의 안 함)은 가입 거부(`OAUTH_EMAIL_REQUIRED`). (네이버는 검증 플래그를 제공하지 않아 provider 정책상 검증된 것으로 간주 — 공식 문서 재확인 권장.)
+- **잔여 리스크(후속)**: token-audience 미검증(다른 앱용 토큰 수용 가능성, confused-deputy) — 최소 구글은 `aud`/`azp` 대조 권장. 동시 최초 로그인 시 unique 제약 레이스는 현재 미처리(raw 500 가능).
+
 ## 참고 자료 (References)
 
 - [docs/ARCHITECTURE.md](../ARCHITECTURE.md) — 전체 아키텍처 개요

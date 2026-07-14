@@ -7,7 +7,6 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import smally.server.core.exception.ErrorCode;
 import smally.server.core.exception.exceptions.AuthException;
-import smally.server.domain.auth.oauth.OauthClient;
 import smally.server.domain.auth.oauth.OauthProvider;
 import smally.server.domain.auth.oauth.OauthUserInfo;
 
@@ -47,7 +46,8 @@ public class KakaoOauthClient implements OauthClient {
         JsonNode account = body.path("kakao_account");
         String email = account.path("email").asText(null);
         String nickname = account.path("profile").path("nickname").asText(null);
+        boolean emailVerified = account.path("is_email_verified").asBoolean(false);
 
-        return new OauthUserInfo(OauthProvider.KAKAO, providerUserId, email, nickname);
+        return new OauthUserInfo(OauthProvider.KAKAO, providerUserId, email, nickname, emailVerified);
     }
 }

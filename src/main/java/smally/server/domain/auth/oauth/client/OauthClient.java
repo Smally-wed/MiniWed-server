@@ -1,4 +1,7 @@
-package smally.server.domain.auth.oauth;
+package smally.server.domain.auth.oauth.client;
+
+import smally.server.domain.auth.oauth.OauthProvider;
+import smally.server.domain.auth.oauth.OauthUserInfo;
 
 /**
  * provider access token으로 provider의 사용자 정보를 조회해 정규화한다.

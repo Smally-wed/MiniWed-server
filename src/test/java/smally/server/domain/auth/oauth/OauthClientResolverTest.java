@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import smally.server.core.exception.exceptions.AuthException;
+import smally.server.domain.auth.oauth.client.OauthClient;
 
 class OauthClientResolverTest {
 

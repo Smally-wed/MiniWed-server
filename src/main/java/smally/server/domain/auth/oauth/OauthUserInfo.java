@@ -4,6 +4,7 @@ public record OauthUserInfo(
         OauthProvider provider,
         String providerUserId,
         String email,
-        String nickname
+        String nickname,
+        boolean emailVerified
 ) {
 }

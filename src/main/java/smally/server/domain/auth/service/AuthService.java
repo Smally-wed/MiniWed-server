@@ -15,6 +15,10 @@ import smally.server.domain.auth.dto.LoginRequest;
 import smally.server.domain.auth.dto.SignupResponse;
 import smally.server.domain.auth.dto.TokenResponse;
 import smally.server.domain.auth.entity.RefreshToken;
+import smally.server.domain.auth.oauth.client.OauthClient;
+import smally.server.domain.auth.oauth.OauthClientResolver;
+import smally.server.domain.auth.oauth.OauthProvider;
+import smally.server.domain.auth.oauth.OauthUserInfo;
 import smally.server.domain.auth.repository.RefreshTokenRepository;
 import smally.server.domain.user.dto.UserCreateRequest;
 import smally.server.domain.user.entity.User;
@@ -31,6 +35,8 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final JwtProperties jwtProperties;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final OauthClientResolver oauthClientResolver;
+    private final OauthUserLinker oauthUserLinker;
 
     public SignupResponse signup(UserCreateRequest request) {
         return SignupResponse.from(internalUserService.createUser(request));
@@ -45,6 +51,22 @@ public class AuthService {
             throw new AuthException(ErrorCode.INVALID_CREDENTIALS);
         }
 
+        return issueTokens(user);
+    }
+
+    public TokenResponse oauthLogin(OauthProvider provider, String accessToken) {
+        OauthClient client = oauthClientResolver.resolve(provider);
+        OauthUserInfo info = client.fetchUserInfo(accessToken); // 외부 HTTP 호출: 트랜잭션 밖
+
+        if (info.email() == null || info.email().isBlank()) {
+            throw new AuthException(ErrorCode.OAUTH_EMAIL_REQUIRED);
+        }
+
+        if (info.providerUserId() == null || info.providerUserId().isBlank()) {
+            throw new AuthException(ErrorCode.OAUTH_PROVIDER_ERROR);
+        }
+
+        User user = oauthUserLinker.resolveOrLink(provider, info); // DB 작업: 트랜잭션 안
         return issueTokens(user);
     }
 

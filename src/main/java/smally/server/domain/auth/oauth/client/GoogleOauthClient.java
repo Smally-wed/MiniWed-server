@@ -7,7 +7,6 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import smally.server.core.exception.ErrorCode;
 import smally.server.core.exception.exceptions.AuthException;
-import smally.server.domain.auth.oauth.OauthClient;
 import smally.server.domain.auth.oauth.OauthProvider;
 import smally.server.domain.auth.oauth.OauthUserInfo;
 
@@ -46,7 +45,8 @@ public class GoogleOauthClient implements OauthClient {
         String providerUserId = body.path("sub").asText(null);
         String email = body.path("email").asText(null);
         String nickname = body.path("name").asText(null);
+        boolean emailVerified = body.path("email_verified").asBoolean(false);
 
-        return new OauthUserInfo(OauthProvider.GOOGLE, providerUserId, email, nickname);
+        return new OauthUserInfo(OauthProvider.GOOGLE, providerUserId, email, nickname, emailVerified);
     }
 }

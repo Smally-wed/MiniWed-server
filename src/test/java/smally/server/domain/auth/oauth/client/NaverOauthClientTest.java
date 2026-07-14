@@ -1,8 +1,10 @@
 package smally.server.domain.auth.oauth.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import org.junit.jupiter.api.Test;
@@ -10,6 +12,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
+import smally.server.core.exception.exceptions.AuthException;
 import smally.server.domain.auth.oauth.OauthProvider;
 import smally.server.domain.auth.oauth.OauthUserInfo;
 
@@ -42,5 +45,19 @@ class NaverOauthClientTest {
         assertThat(info.providerUserId()).isEqualTo("abc-123");
         assertThat(info.email()).isEqualTo("user@naver.com");
         assertThat(info.nickname()).isEqualTo("네이버유저");
+        assertThat(info.emailVerified()).isTrue();
+    }
+
+    @Test
+    void fetchUserInfo_provider_오류면_AuthException() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        NaverOauthClient client = new NaverOauthClient(builder);
+
+        server.expect(requestTo("https://openapi.naver.com/v1/nid/me"))
+                .andRespond(withServerError());
+
+        assertThatThrownBy(() -> client.fetchUserInfo("token123"))
+                .isInstanceOf(AuthException.class);
     }
 }

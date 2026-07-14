@@ -7,7 +7,6 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import smally.server.core.exception.ErrorCode;
 import smally.server.core.exception.exceptions.AuthException;
-import smally.server.domain.auth.oauth.OauthClient;
 import smally.server.domain.auth.oauth.OauthProvider;
 import smally.server.domain.auth.oauth.OauthUserInfo;
 
@@ -48,6 +47,7 @@ public class NaverOauthClient implements OauthClient {
         String email = response.path("email").asText(null);
         String nickname = response.path("nickname").asText(null);
 
-        return new OauthUserInfo(OauthProvider.NAVER, providerUserId, email, nickname);
+        // 네이버는 별도 검증 플래그를 제공하지 않으나, 네이버 계정 이메일은 provider가 검증한 값이므로 true로 간주한다.
+        return new OauthUserInfo(OauthProvider.NAVER, providerUserId, email, nickname, true);
     }
 }
