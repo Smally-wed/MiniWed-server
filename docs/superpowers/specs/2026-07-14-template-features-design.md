@@ -13,6 +13,15 @@
 - **조회**: 사용자가 템플릿 목록/단건을 조회한다.
 - 검증 엔진 분리: JSON Schema 검증기를 공용 컴포넌트로 두어, 청첩장 데이터 검증(invitation 도메인)에서도 재사용한다.
 
+### 핵심 전제: `section_schema`는 서버 검증 전용 (프론트에 내려주지 않음)
+
+실제 청첩장 디자인은 프론트엔드의 **사람이 손으로 만든 React 컴포넌트**이며(ARCHITECTURE 15·17줄), 그 컴포넌트가 **입력 폼과 필드 구조를 이미 자체적으로 알고 있다.** 따라서 프론트는 폼을 그리기 위해 `section_schema`를 받을 필요가 없다.
+
+`section_schema`의 유일한 소비자는 **서버 자신**이다. 서버는 이를 DB에 검증용으로 보관하고, 청첩장 저장 시점에 로드해 `section_values`를 검증한다. 스키마는 서버 밖으로 나가지 않는다.
+
+- 조회 응답(목록·단건)에서 `section_schema`를 **제외**한다.
+- 조회 시 프론트가 필요로 하는 것은 `templateUid`(컴포넌트 매칭 키)와 `variants`(사용자가 고르는 색·폰트 선택지)다.
+
 ### 범위 밖 (이번 설계 제외)
 
 - 템플릿 **수정/삭제** — 스키마 버전 관리가 없어(ADR-002 4항) 발행된 청첩장과 불일치 위험이 있으므로 후속 과제.
@@ -35,11 +44,10 @@
 
 ```
 domain/template
-├── entity/Template.java            (기존) section_schema, variants, category(String) 등
+├── entity/Template.java            (기존) section_schema(서버 검증용), variants, category(String) 등
 ├── entity/Category.java            (기존) title (String, FK 없음 — 현상태 유지)
-├── dto/TemplateCreateRequest.java  (채움) 등록 요청
-├── dto/TemplateResponse.java       (채움) 단건 응답 — section_schema 포함
-├── dto/TemplateSummaryResponse.java(신규) 목록 응답 — section_schema 제외
+├── dto/TemplateCreateRequest.java  (채움) 등록 요청 — section_schema 포함(등록 시에만 들어옴)
+├── dto/TemplateResponse.java       (채움) 조회 응답 — section_schema 제외
 ├── service/TemplateService.java    (기존 인터페이스) create/get/getList
 └── service/TemplateServiceImpl.java(신규) 구현 — 등록 시 메타검증 호출
 
@@ -47,11 +55,11 @@ domain/template
 └── SchemaValidator                 (신규) JSON Schema 메타검증 + 데이터검증 진입점
 ```
 
-### 왜 응답 DTO를 둘로 나누나
+### 응답 DTO는 하나로 충분하다
 
-- **단건**(`TemplateResponse`): 편집 화면이 입력 폼을 그려야 하므로 `section_schema`를 **포함**한다.
-- **목록**(`TemplateSummaryResponse`): 카드 그리드용이라 `section_schema`가 불필요하고 무겁다. 썸네일·이름·카테고리만 내린다.
-- 하나로 합치면 목록 조회마다 큰 스키마를 매 항목 실어 나른다. 그래서 분리한다.
+`section_schema`를 어차피 조회에서 안 내려주므로, 목록과 단건이 실어 나르는 필드가 사실상 같다. 따라서 **`TemplateResponse` 하나**로 목록·단건을 모두 처리한다(목록은 그 List). 응답에 담는 것은 `templateUid`, `name`, `thumbnail`, `category`, `variants`다.
+
+> 앞선 초안에서 "단건엔 스키마 포함 / 목록엔 제외"로 DTO를 둘로 나눴으나, 스키마가 서버 검증 전용으로 정리되면서 그 구분이 불필요해졌다.
 
 ## 4. 등록 + 메타검증
 
@@ -100,7 +108,9 @@ createTemplate(request):
   4. TemplateResponse 반환
 ```
 
-### 응답 (`TemplateResponse`, 등록 직후 = 단건 조회와 동일 형태)
+### 응답 (`TemplateResponse`, 등록 직후 = 조회와 동일 형태)
+
+등록 요청엔 `section_schema`가 들어오지만, **응답에는 담지 않는다**(서버 검증 전용).
 
 ```json
 {
@@ -108,26 +118,27 @@ createTemplate(request):
   "name": "클래식 화이트",
   "thumbnail": "https://cdn.smally/thumb/classic.png",
   "category": "클래식",
-  "sectionSchema": { "...요청과 동일...": "..." },
   "variants": { "color": ["white", "beige"], "font": ["serif", "sans"] }
 }
 ```
 
 ## 5. 조회 응답
 
+목록·단건 모두 `section_schema`를 **제외**한다(서버 검증 전용). 응답 DTO는 `TemplateResponse` 하나를 공유한다.
+
 ### 단건 — `GET /templates/{templateUid}`
 
-`section_schema` **포함** (편집 폼 렌더용). 형태는 4절의 `TemplateResponse`와 동일.
+형태는 4절의 `TemplateResponse`와 동일. 없으면 404.
 
 ### 목록 — `GET /templates?category=클래식&page=0&size=20`
 
-`section_schema` **제외**. `category`는 선택적 필터. 페이징 적용.
+`category`는 선택적 필터. 페이징 적용.
 
 ```json
 {
   "content": [
-    { "templateUid": "a1b2...", "name": "클래식 화이트", "thumbnail": "https://cdn.smally/thumb/classic.png", "category": "클래식" },
-    { "templateUid": "e5f6...", "name": "클래식 베이지", "thumbnail": "https://cdn.smally/thumb/beige.png", "category": "클래식" }
+    { "templateUid": "a1b2...", "name": "클래식 화이트", "thumbnail": "https://cdn.smally/thumb/classic.png", "category": "클래식", "variants": { "color": ["white", "beige"] } },
+    { "templateUid": "e5f6...", "name": "클래식 베이지", "thumbnail": "https://cdn.smally/thumb/beige.png", "category": "클래식", "variants": { "color": ["beige"] } }
   ],
   "page": 0, "size": 20, "totalElements": 2
 }
