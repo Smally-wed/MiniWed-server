@@ -29,6 +29,7 @@ class KakaoOauthClientTest {
                   "id": 1234567890,
                   "kakao_account": {
                     "email": "user@kakao.com",
+                    "is_email_verified": true,
                     "profile": { "nickname": "카카오유저" }
                   }
                 }
@@ -43,6 +44,7 @@ class KakaoOauthClientTest {
         assertThat(info.providerUserId()).isEqualTo("1234567890");
         assertThat(info.email()).isEqualTo("user@kakao.com");
         assertThat(info.nickname()).isEqualTo("카카오유저");
+        assertThat(info.emailVerified()).isTrue();
     }
 
     @Test

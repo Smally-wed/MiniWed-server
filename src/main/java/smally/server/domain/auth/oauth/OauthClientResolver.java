@@ -6,6 +6,7 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 import smally.server.core.exception.ErrorCode;
 import smally.server.core.exception.exceptions.AuthException;
+import smally.server.domain.auth.oauth.client.OauthClient;
 
 @Component
 public class OauthClientResolver {

@@ -36,3 +36,13 @@ ADR-003/004 결정을 코드로 구현. 새 결정 없이 구현 세부만 확�
 - **refresh 저장 = Redis, userId당 1개**(ADR-004). refresh 원문이 아닌 **SHA-256 해시**로 저장·대조. login=발급+저장, `/refresh`=대조 후 회전, `/logout`=키 삭제. 현재 **다중 기기 세션 미지원**(userId 키 덮어씀) — 후속 과제.
 - **auth API**: `POST /api/auth/signup|login|refresh|logout` 구현([domain/auth](../src/main/java/smally/server/domain/auth)). `/users/me`·OAuth2 엔드포인트는 아직 없음.
 - **전역 예외 처리**([core/exception](../src/main/java/smally/server/core/exception)): `BusinessException`+`ErrorCode` enum → `@RestControllerAdvice`가 명세서 §0.3 포맷(code/message)으로 응답(중복 이메일 409, 자격/토큰 불일치 401, 검증 실패 400).
+
+## 2026-07-14 — OAuth 소셜 로그인 구현 (ADR-003 소셜 부분 구현)
+
+설계: [specs/2026-07-14-oauth-login-design.md](./superpowers/specs/2026-07-14-oauth-login-design.md), 계획: [plans/2026-07-14-oauth-login.md](./superpowers/plans/2026-07-14-oauth-login.md). 상세 결정은 [ADR-003](./adr/ADR-003-authentication-jwt-oauth2.md) "2026-07-14 구현 시 확정 사항" 참고.
+
+- **토큰 릴레이 방식**: `POST /api/auth/v1/oauth/{provider}`(kakao|google|naver), body `{accessToken}` → provider userinfo 조회 후 자체 JWT 발급(기존 `TokenResponse` 재사용). 포트 `OauthClient` + provider별 어댑터(`domain/auth/oauth/client`), `OauthClientResolver`, DB 트랜잭션은 `OauthUserLinker`로 분리(외부 HTTP 호출은 트랜잭션 밖).
+- **account linking = 이메일 검증 시에만 자동 링킹**, 미검증+기존계정=거부(409), 이메일 미제공=거부. 스키마 변경 없음(`OauthAccount`, `User` 그대로).
+- **Boot 4.1 주의**: `RestClient.Builder` 빈이 자동 등록 안 됨 → `config/RestClientConfig`에서 직접 제공(+ connect 2s/read 5s 타임아웃, `SimpleClientHttpRequestFactory`). Jackson 3.x는 `tools.jackson.databind` 네임스페이스.
+- **후속 과제**: token-audience 검증(#2), Naver `emailVerified=true` 가정 공식문서 확인, 동시 최초 로그인 unique 레이스 처리, provider 콘솔에서 이메일 필수 동의 설정.
+- **git 주의**: 구현 중 커밋 `5a8771e`가 템플릿 설계 문서와 OAuth 파일 일부를 혼재해 커밋(단독 빌드 불가) — 정리 필요(사용자 처리 예정).

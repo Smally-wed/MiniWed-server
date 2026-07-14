@@ -274,14 +274,14 @@ Expected: 컴파일 실패 (`KakaoOauthClient` 없음).
 ```java
 package smally.server.domain.auth.oauth.client;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import smally.server.core.exception.ErrorCode;
 import smally.server.core.exception.exceptions.AuthException;
-import smally.server.domain.auth.oauth.OauthClient;
+import smally.server.domain.auth.oauth.client.OauthClient;
 import smally.server.domain.auth.oauth.OauthProvider;
 import smally.server.domain.auth.oauth.OauthUserInfo;
 
@@ -414,14 +414,14 @@ Expected: 컴파일 실패 (`GoogleOauthClient` 없음).
 ```java
 package smally.server.domain.auth.oauth.client;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import smally.server.core.exception.ErrorCode;
 import smally.server.core.exception.exceptions.AuthException;
-import smally.server.domain.auth.oauth.OauthClient;
+import smally.server.domain.auth.oauth.client.OauthClient;
 import smally.server.domain.auth.oauth.OauthProvider;
 import smally.server.domain.auth.oauth.OauthUserInfo;
 
@@ -556,14 +556,14 @@ Expected: 컴파일 실패 (`NaverOauthClient` 없음).
 ```java
 package smally.server.domain.auth.oauth.client;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import smally.server.core.exception.ErrorCode;
 import smally.server.core.exception.exceptions.AuthException;
-import smally.server.domain.auth.oauth.OauthClient;
+import smally.server.domain.auth.oauth.client.OauthClient;
 import smally.server.domain.auth.oauth.OauthProvider;
 import smally.server.domain.auth.oauth.OauthUserInfo;
 
@@ -813,7 +813,7 @@ import smally.server.core.jwt.JwtProperties;
 import smally.server.core.jwt.JwtTokenProvider;
 import smally.server.domain.auth.dto.TokenResponse;
 import smally.server.domain.auth.entity.OauthAccount;
-import smally.server.domain.auth.oauth.OauthClient;
+import smally.server.domain.auth.oauth.client.OauthClient;
 import smally.server.domain.auth.oauth.OauthClientResolver;
 import smally.server.domain.auth.oauth.OauthProvider;
 import smally.server.domain.auth.oauth.OauthUserInfo;
@@ -958,7 +958,7 @@ import smally.server.domain.auth.dto.SignupResponse;
 import smally.server.domain.auth.dto.TokenResponse;
 import smally.server.domain.auth.entity.OauthAccount;
 import smally.server.domain.auth.entity.RefreshToken;
-import smally.server.domain.auth.oauth.OauthClient;
+import smally.server.domain.auth.oauth.client.OauthClient;
 import smally.server.domain.auth.oauth.OauthClientResolver;
 import smally.server.domain.auth.oauth.OauthProvider;
 import smally.server.domain.auth.oauth.OauthUserInfo;

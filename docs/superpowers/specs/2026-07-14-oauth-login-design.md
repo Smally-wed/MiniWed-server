@@ -93,6 +93,16 @@ domain/auth/dto/            OauthLoginRequest
   4. 이메일 미동의 → 거부
 - **provider 클라이언트 테스트** — `MockRestServiceServer`로 userinfo 응답 파싱/정규화 검증.
 
+## 구현 시 확정/변경된 사항 (2026-07-14)
+
+설계 이후 구현·리뷰에서 다음이 추가·조정되었다.
+
+- **`RestClient.Builder` 빈 직접 제공**: Spring Boot 4.1의 모듈화 자동설정에서 `spring-boot-restclient`가 클래스패스에 없어 `RestClient.Builder`가 자동 등록되지 않는다(없으면 앱 컨텍스트 부팅 실패). `config/RestClientConfig`에서 prototype 스코프로 제공하며 connect 2s / read 5s 타임아웃을 설정한다(`SimpleClientHttpRequestFactory`, 의존성 추가 없음).
+- **이메일 검증 기반 링킹(보안)**: `OauthUserInfo`에 `emailVerified` 추가. 기존 User와 이메일이 겹치는 자동 링킹은 **provider가 이메일을 검증한 경우에만** 허용하고, 미검증인데 기존 User가 있으면 `OAUTH_EMAIL_NOT_VERIFIED`(409)로 거부(계정 탈취 방지). 카카오 `is_email_verified`, 구글 `email_verified`, 네이버는 검증 플래그 부재로 true 간주.
+- **트랜잭션 경계 분리**: 외부 provider HTTP 호출은 `@Transactional` 밖(`AuthService.oauthLogin`)에서 먼저 수행하고, DB 조회/링크/생성만 별도 `@Service OauthUserLinker`의 `@Transactional` 메서드로 처리한다.
+- **provider 응답 방어**: `providerUserId` 누락 시 `OAUTH_PROVIDER_ERROR`.
+- Jackson은 3.x(`tools.jackson.databind`).
+
 ## 미해결/후속
 
 - provider별 userinfo 엔드포인트 URL·요청 형식 확정 (구현 시 각 provider 문서 확인).
