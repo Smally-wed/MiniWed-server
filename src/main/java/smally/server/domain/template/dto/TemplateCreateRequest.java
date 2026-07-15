@@ -14,6 +14,7 @@ public record TemplateCreateRequest(
         String category,
         @NotNull(message = "섹션 스키마는 필수입니다.")
         Map<String, Object> sectionSchema,
+        Map<String, Object> optionsSchema,
         Map<String, Object> variants
 ) {
     public Template toTemplate(){
@@ -22,6 +23,7 @@ public record TemplateCreateRequest(
                 .thumbnail(thumbnail)
                 .category(category)
                 .sectionSchema(sectionSchema)
+                .optionsSchema(optionsSchema)
                 .variants(variants)
                 .build();
     }

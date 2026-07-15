@@ -166,8 +166,12 @@
 domain/template
 ├── entity/Template.java              (수정) options_schema 필드 추가 (jsonb)
 ├── dto/TemplateCreateRequest.java    (수정) optionsSchema 수신
-├── dto/TemplateResponse.java         (수정) optionsSchema 노출 (section_schema는 계속 비노출)
+├── dto/VariantResponse.java          (수정) optionsSchema 노출 (프론트 선택지 응답, section_schema는 계속 비노출)
 └── service/TemplateServiceImpl.java  (수정) 등록 시 optionsSchema 메타검증 호출
+
+> 노출 위치: 초안(§3 서술)에서는 `TemplateResponse`를 상정했으나, `TemplateResponse`는
+> 등록 응답(templateUid만 반환)이고 프론트 조회 모델은 `VariantResponse`
+> (GET /api/template/v1/variant/{uid})이므로 `optionsSchema`는 `VariantResponse`로 노출한다.
 
 공용
 └── SchemaValidator                   (재사용) 추가 구현 없음
