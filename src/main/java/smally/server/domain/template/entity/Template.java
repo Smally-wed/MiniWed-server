@@ -45,14 +45,20 @@ public class Template extends BaseEntity {
     @Column
     private Map<String, Object> variants;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "options_schema")
+    private Map<String, Object> optionsSchema;
+
     @Builder
     private Template(String name, String thumbnail, String category,
-                     Map<String, Object> sectionSchema, Map<String, Object> variants) {
+                     Map<String, Object> sectionSchema, Map<String, Object> variants,
+                     Map<String, Object> optionsSchema) {
         this.name = name;
         this.thumbnail = thumbnail;
         this.category = category;
         this.sectionSchema = sectionSchema;
         this.variants = variants;
+        this.optionsSchema = optionsSchema;
     }
 
     @PrePersist

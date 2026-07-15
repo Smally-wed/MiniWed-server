@@ -23,7 +23,8 @@ public enum ErrorCode {
     TEMPLATE_NOT_FOUND(HttpStatus.NOT_FOUND,"NOT_FOUND", "템플릿 정보를 찾을 수 없습니다."),
     CATEGORY_NOT_FOUND(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "존재하지 않는 카테고리입니다."),
     DUPLICATE_CATEGORY(HttpStatus.CONFLICT, "CONFLICT", "이미 존재하는 카테고리입니다."),
-    INVALID_SECTION_VALUES(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "청첩장 입력값이 템플릿 스키마와 맞지 않습니다.");
+    INVALID_SECTION_VALUES(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "청첩장 입력값이 템플릿 스키마와 맞지 않습니다."),
+    INVALID_TEMPLATE_OPTIONS_SCHEMA(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "옵션 스키마가 유효한 JSON Schema가 아닙니다.");
 
     private final HttpStatus status;
     private final String code;
