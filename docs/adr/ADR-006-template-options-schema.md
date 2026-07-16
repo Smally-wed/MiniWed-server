@@ -1,9 +1,11 @@
 # ADR-006: 템플릿 옵션은 두 번째 JSON Schema(options_schema)로 관리하고 프론트에 노출한다
 
-- 상태: 승인됨
+- 상태: 대체됨 (ADR-007로 대체)
 - 작성일: 2026-07-15
 - 작성자: jasmin
-- 관련 ADR: ADR-002
+- 관련 ADR: ADR-002, ADR-007(이 결정을 대체)
+
+> **대체 안내 (2026-07-15)**: 이 ADR의 template-level `options_schema` 결정은 [ADR-007](./ADR-007-section-component-template-model.md)로 대체되었다. 옵션은 컴포넌트 `option_schema` + 템플릿 `theme`로 분해된다. 공용 `SchemaValidator`는 그대로 유지된다. 이력 참고용으로 본문을 남긴다.
 
 ## 배경 (Context)
 
