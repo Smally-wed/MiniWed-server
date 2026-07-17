@@ -2,9 +2,9 @@ package smally.server.domain.template.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import smally.server.domain.template.entity.Template;
-
+import java.util.List;
 import java.util.Map;
+import smally.server.domain.template.entity.Template;
 
 public record TemplateCreateRequest(
         @NotBlank(message = "템플릿 이름은 필수입니다.")
@@ -12,19 +12,17 @@ public record TemplateCreateRequest(
         String thumbnail,
         @NotBlank(message = "카테고리는 필수입니다.")
         String category,
-        @NotNull(message = "섹션 스키마는 필수입니다.")
-        Map<String, Object> sectionSchema,
-        Map<String, Object> optionsSchema,
-        Map<String, Object> variants
+        @NotNull(message = "섹션 구성은 필수입니다.")
+        List<Map<String, Object>> sections,
+        Map<String, Object> theme
 ) {
-    public Template toTemplate(){
+    public Template toTemplate() {
         return Template.builder()
                 .name(name)
                 .thumbnail(thumbnail)
                 .category(category)
-                .sectionSchema(sectionSchema)
-                .optionsSchema(optionsSchema)
-                .variants(variants)
+                .sections(sections)
+                .theme(theme)
                 .build();
     }
 }

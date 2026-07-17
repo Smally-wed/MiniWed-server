@@ -10,15 +10,22 @@ import smally.server.domain.template.entity.Template;
 class TemplateCreateRequestTest {
 
     @Test
-    void toTemplate_optionsSchema를_매핑한다() {
-        Map<String, Object> options = Map.of(
-                "design", Map.of("fontSize", Map.of("enum", List.of("small", "large"))));
+    void toTemplate_sections와_theme를_매핑한다() {
+        List<Map<String, Object>> sections = List.of(
+                Map.of("componentUId", "GalleryGrid",
+                        "options", Map.of("titleSize", "L"),
+                        "editable", List.of("titleSize")));
+        Map<String, Object> theme = Map.of("fontSize", "large");
+
         TemplateCreateRequest request = new TemplateCreateRequest(
-                "클래식 화이트", "https://cdn/thumb.png", "클래식",
-                Map.of("type", "object"), options, Map.of("color", List.of("white")));
+                "클래식 화이트", "https://cdn/thumb.png", "클래식", sections, theme);
 
         Template template = request.toTemplate();
 
-        assertThat(template.getOptionsSchema()).isEqualTo(options);
+        assertThat(template.getName()).isEqualTo("클래식 화이트");
+        assertThat(template.getThumbnail()).isEqualTo("https://cdn/thumb.png");
+        assertThat(template.getCategory()).isEqualTo("클래식");
+        assertThat(template.getSections()).isEqualTo(sections);
+        assertThat(template.getTheme()).isEqualTo(theme);
     }
 }

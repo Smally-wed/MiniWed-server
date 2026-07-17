@@ -28,9 +28,13 @@ public enum ErrorCode {
     COMPONENT_TYPE_NOT_FOUND(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "존재하지 않는 컴포넌트 종류입니다."),
     COMPONENT_NOT_FOUND(HttpStatus.NOT_FOUND, "NOT_FOUND", "컴포넌트를 찾을 수 없습니다."),
     INVALID_COMPONENT_SCHEMA(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "컴포넌트 스키마가 유효한 JSON Schema가 아닙니다."),
+    INVALID_COMPONENT_DATA(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "컴포넌트 데이터가 유효한 JSON가 아닙니다."),
+    INVALID_COMPONENT_OPTION_DATA(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "컴포넌트 옵션 데이터가 유효한 JSON가 아닙니다."),
     DUPLICATE_OPTION_DEFINITION(HttpStatus.CONFLICT, "CONFLICT", "이미 존재하는 옵션 키입니다."),
     OPTION_DEFINITION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOT_FOUND", "옵션 정의를 찾을 수 없습니다."),
-    INVALID_OPTION_DEFAULT(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "기본값이 허용값 목록에 없습니다.");
+    INVALID_OPTION_DEFAULT(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "기본값이 허용값 목록에 없습니다."),
+    INVALID_TEMPLATE_RECIPE(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "템플릿 레시피가 유효하지 않습니다."),
+    INVALID_TEMPLATE_THEME(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "theme 값이 옵션 정의의 허용값에 없습니다.");
 
     private final HttpStatus status;
     private final String code;

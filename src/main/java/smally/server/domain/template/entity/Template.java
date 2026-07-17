@@ -3,6 +3,7 @@ package smally.server.domain.template.entity;
 import com.github.f4b6a3.uuid.UuidCreator;
 import jakarta.persistence.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -38,27 +39,21 @@ public class Template extends BaseEntity {
     private String category;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "section_schema", nullable = false)
-    private Map<String, Object> sectionSchema;
+    @Column(name = "sections", nullable = false)
+    private List<Map<String, Object>> sections;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column
-    private Map<String, Object> variants;
-
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "options_schema")
-    private Map<String, Object> optionsSchema;
+    @Column(name = "theme")
+    private Map<String, Object> theme;
 
     @Builder
     private Template(String name, String thumbnail, String category,
-                     Map<String, Object> sectionSchema, Map<String, Object> variants,
-                     Map<String, Object> optionsSchema) {
+                     List<Map<String, Object>> sections, Map<String, Object> theme) {
         this.name = name;
         this.thumbnail = thumbnail;
         this.category = category;
-        this.sectionSchema = sectionSchema;
-        this.variants = variants;
-        this.optionsSchema = optionsSchema;
+        this.sections = sections;
+        this.theme = theme;
     }
 
     @PrePersist

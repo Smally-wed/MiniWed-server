@@ -1,4 +1,4 @@
-package smally.server.domain.template.service;
+package smally.server.domain.component.service;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -7,6 +7,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -15,7 +16,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import smally.server.core.cache.RedisCacheService;
 import smally.server.core.exception.ErrorCode;
 import smally.server.core.exception.exceptions.ComponentTypeException;
-import smally.server.domain.component.service.ComponentTypeServiceImpl;
 import smally.server.domain.component.dto.ComponentTypeCreateRequest;
 import smally.server.domain.component.entity.ComponentType;
 import smally.server.domain.component.repository.ComponentTypeRepository;
@@ -57,8 +57,8 @@ class ComponentTypeServiceImplTest {
     }
 
     @Test
-    void validateExists_없는_종류면_COMPONENT_TYPE_NOT_FOUND() {
-        when(repository.existsByName("nope")).thenReturn(false);
+    void getComponentByName_없는_종류면_COMPONENT_TYPE_NOT_FOUND() {
+        when(repository.findByName("nope")).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.getComponentByName("nope"))
                 .isInstanceOf(ComponentTypeException.class)

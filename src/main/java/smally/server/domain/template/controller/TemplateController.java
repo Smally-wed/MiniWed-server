@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.*;
 import smally.server.core.dto.ApiResponse;
 import smally.server.domain.template.dto.TemplateCreateRequest;
 import smally.server.domain.template.dto.TemplateResponse;
-import smally.server.domain.template.dto.VariantResponse;
 import smally.server.domain.template.service.TemplateService;
 
 @RestController
@@ -29,13 +28,13 @@ public class TemplateController {
                 ));
     }
 
-    @GetMapping("/v1/variant/{templateUID}")
-    public ResponseEntity<ApiResponse<VariantResponse>> getVariant(
+    @GetMapping("/v1/{templateUID}")
+    public ResponseEntity<ApiResponse<TemplateResponse>> getTemplate(
             @PathVariable String templateUID
     ){
         return ResponseEntity.ok(
                 ApiResponse.of(
-                        HttpStatus.OK, templateService.getVariant(templateUID)
+                        HttpStatus.OK, templateService.getTemplate(templateUID)
                 ));
     }
 
