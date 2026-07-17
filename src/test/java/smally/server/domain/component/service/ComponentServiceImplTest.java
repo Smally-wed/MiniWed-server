@@ -1,4 +1,4 @@
-package smally.server.domain.template.service;
+package smally.server.domain.component.service;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -20,10 +20,9 @@ import smally.server.core.exception.exceptions.ComponentException;
 import smally.server.core.exception.exceptions.ComponentTypeException;
 import smally.server.core.cache.RedisCacheService;
 import smally.server.core.validation.SchemaValidator;
-import smally.server.domain.component.service.ComponentServiceImpl;
-import smally.server.domain.component.service.ComponentTypeService;
 import smally.server.domain.component.dto.ComponentCreateRequest;
 import smally.server.domain.component.entity.Component;
+import smally.server.domain.component.entity.ComponentType;
 import smally.server.domain.component.repository.ComponentRepository;
 import tools.jackson.databind.ObjectMapper;
 
@@ -73,6 +72,8 @@ class ComponentServiceImplTest {
     @Test
     void createComponent_유효하면_저장한다() {
         ComponentCreateRequest req = request(Map.of("type", "object"));
+        when(componentTypeService.getComponentByName("gallery"))
+                .thenReturn(ComponentType.builder().name("gallery").build());
 
         assertThatCode(() -> service.createComponent(req)).doesNotThrowAnyException();
 
@@ -80,10 +81,10 @@ class ComponentServiceImplTest {
     }
 
     @Test
-    void getComponent_없는_id면_COMPONENT_NOT_FOUND() {
-        when(componentRepository.findById(999L)).thenReturn(Optional.empty());
+    void getComponent_없는_componentUId면_COMPONENT_NOT_FOUND() {
+        when(componentRepository.findByComponentUId("GalleryGrid")).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.getComponent("componentUid"))
+        assertThatThrownBy(() -> service.getComponent("GalleryGrid"))
                 .isInstanceOf(ComponentException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.COMPONENT_NOT_FOUND);
     }

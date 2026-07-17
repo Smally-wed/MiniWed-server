@@ -21,7 +21,7 @@ import smally.server.domain.component.repository.ComponentRepository;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class ComponentServiceImpl implements ComponentService {
+public class ComponentServiceImpl implements ComponentService, InternalComponentService {
 
     private final static String COMPONENT_CACHE_kEY= "COM:";
     private final static String COMPONENT_LIST_CACHE_kEY= "COM:LIST";
@@ -63,7 +63,7 @@ public class ComponentServiceImpl implements ComponentService {
             return cached;
         }
         log.warn("[Cache-miss] component detail cache miss key : {}", componentUid);
-        Component component = componentRepository.findbyComponentUid(componentUid)
+        Component component = componentRepository.findByComponentUId(componentUid)
                 .orElseThrow(() -> new ComponentException(ErrorCode.COMPONENT_NOT_FOUND));
 
         ComponentResponse response = ComponentResponse.from(component);
@@ -97,6 +97,21 @@ public class ComponentServiceImpl implements ComponentService {
     private void validateSchemaOrThrow(Map<String, Object> schema) {
         if (!schemaValidator.validateSchema(schema).isEmpty()) {
             throw new ComponentException(ErrorCode.INVALID_COMPONENT_SCHEMA);
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public void validateComponentJsontData(String componentUid, Map<String, Object> data,Map<String, Object> optionData ) {
+        Component component = componentRepository.findByComponentUId(componentUid)
+                .orElseThrow(() -> new ComponentException(ErrorCode.COMPONENT_NOT_FOUND));
+
+        if(!schemaValidator.validateData(component.getDataSchema(),data).isEmpty()){
+            throw new ComponentException(ErrorCode.INVALID_COMPONENT_DATA);
+        }
+
+        if(!schemaValidator.validateData(component.getDataSchema(),optionData).isEmpty()){
+            throw new ComponentException(ErrorCode.INVALID_COMPONENT_OPTION_DATA);
         }
     }
 }

@@ -46,3 +46,32 @@ ADR-003/004 결정을 코드로 구현. 새 결정 없이 구현 세부만 확�
 - **Boot 4.1 주의**: `RestClient.Builder` 빈이 자동 등록 안 됨 → `config/RestClientConfig`에서 직접 제공(+ connect 2s/read 5s 타임아웃, `SimpleClientHttpRequestFactory`). Jackson 3.x는 `tools.jackson.databind` 네임스페이스.
 - **후속 과제**: token-audience 검증(#2), Naver `emailVerified=true` 가정 공식문서 확인, 동시 최초 로그인 unique 레이스 처리, provider 콘솔에서 이메일 필수 동의 설정.
 - **git 주의**: 구현 중 커밋 `5a8771e`가 템플릿 설계 문서와 OAuth 파일 일부를 혼재해 커밋(단독 빌드 불가) — 정리 필요(사용자 처리 예정).
+
+## 2026-07-17 — MVP 성능·운영 연구 계획 수립 (기능 개발 완료 후 착수)
+
+계획: [plans/2026-07-17-performance-research.md](./superpowers/plans/2026-07-17-performance-research.md). 연구는 미착수이며, 여기 남기는 것은 **연구의 전제로 확정한 요구사항·가정·범위**다. 결과가 나오면 각 ADR에 반영한다.
+
+- **제품 요구사항 확정(기준점)**: 하객 청첩장 **로드 ≤ 1,000ms(절대 조건)**, 청첩장 **생성/저장 ≤ 1,000ms**. 모든 목표 수치는 이 둘에서 역산하며, 요구사항이 바뀌면 전부 재계산한다.
+- **예산 분해 결과**: 로드 1,000ms = 네트워크 250 + **서버 조회 API 100** + 프론트 렌더 200 + **이미지 400** + 버퍼 50. **서버 API 몫은 전체의 10%, 이미지가 40%**. 저장 1,000ms 중 **JSON Schema 검증은 10ms(1.5%)**.
+- **🔴 이미지 크기 상한 = 300KB**: 이미지 예산 400ms × 모바일 실효 대역폭 5Mbps 역산. **아이폰 원본(3~5MB)은 10Mbps에서도 2.4초라 서버 API가 0ms여도 1초 목표가 깨진다.** 1초 목표의 최대 위협은 서버가 아니라 이미지 전달이다.
+- **부하 가정**: 동시 발행 **100건**(하한) × 하객 300명 × 재방문 2.0회 = 60,000 조회 → **피크 20~60 RPS**. Postgres가 힘들어할 규모가 아니다.
+- **연구 5개·우선순위**: **E(S3 vs CloudFront) → A(JSON Schema 검증 비용) → B(Redis 직렬화) → C(캐시 전략) → D(검색 인덱싱)**, 총 8.5일(Phase 0 포함). E가 1순위인 이유는 예산의 40%를 쥐고 있고, "이미지 최적화 필수" 결론이 나오면 **리사이징 파이프라인이 새 개발 범위로 들어오기** 때문. A가 C보다 앞인 이유는 A의 "스키마 컴파일 캐싱 필수" 결론이 C가 찾던 진짜 캐싱 대상일 수 있어서.
+- **연구 E = ADR-001 후속 조치 종결**: [ADR-001](./adr/ADR-001-image-storage-s3-presigned.md)이 "공개 읽기 제공 방식 결정: S3 공개 읽기 vs CloudFront(권장), **별도 검토**"로 남긴 미결을 데이터로 닫는다. presigned는 **업로드 전용**이고 읽기는 공개 읽기이므로 CDN 캐싱과 서명 URL의 충돌은 **없음**(확인 완료).
+- **질문 재설계(중요)**: ① 캐시 연구는 "히트율이 몇 %인가"가 아니라 **"이 규모에서 캐시가 애초에 이득인가, 몇 건부터 필요해지는가"**(100/300/1000건 곡선). 트래픽이 없는 상태에서 절대 히트율은 부하 생성기 파라미터의 함수라 동어반복이 된다. **C1(캐시 없음)이 이기면 "Redis를 넣지 않는다"는 근거 있는 결정**이다. ② 검색 연구는 "ES가 과도한가"(답이 정해져 있음)가 아니라 **"몇 건부터 ES가 필요해지는가"** 임계점 특정.
+- **탈락 조건(성능과 무관한 합격/불합격)**: 캐시의 **stale read 0건**(예식 시간이 틀린 청첩장은 치명적 결함), Redis 직렬화의 **패키지 이동 후 역직렬화 성공**(ADR-007로 도메인 재설계 중이라 실제 위험).
+- **측정 규율**: A·B=JMH, C·D=k6, E=브라우저/실기기. **`System.nanoTime()` 직접 측정 금지**(JIT 워밍업으로 승자가 뒤집힘). 99.9% 신뢰구간이 겹치면 "차이 없음"이 결론. 모든 연구에 baseline 변형을 둔다.
+- **가정 표(G1~G9)가 공통 산출물**: G2~G6(하객 수·조회 분포·재방문율)은 실운영 전까지 확인 불가라 가정으로 진행. 실트래픽이 생기면 **가정만 갈아끼워 재실행**한다.
+- **후속 과제**: **연구 D의 검색 대상 미확정**(일반 컬럼 → B-tree vs jsonb 내부 → GIN으로 변형이 갈림, 기능 정의 후 분기 선택). G7(모바일 실효 대역폭)·G8(RTT) Phase 0 실측 후 이미지 목표 재확정. CloudFront egress 단가 확인.
+- **범위 밖(별도 과제)**: 프론트 렌더 성능, Actuator/관측성 도입, DB 마이그레이션 도구(현재 `ddl-auto: create-drop`이라 운영 배포 불가 — 별건으로 시급).
+
+## 2026-07-17 — Template 레시피 전환(ADR-007 계획 C) 구현 + 기동 불가 버그 발견
+
+계획: [plans/2026-07-17-template-recipe.md](./superpowers/plans/2026-07-17-template-recipe.md)(개정 1 + 실행 기록). 작업 트리에만 존재(미커밋). `clean build` 59 tests / 0 failures.
+
+- **ADR-007 결정 2를 코드로 이행**: `Template` = `sections`(jsonb, `[{componentUId, options, editable}]` 순서 리스트) + `theme`(jsonb) + 메타. `section_schema`·`variants`·`VariantResponse`·`InternalTemplateService`·`isValidTemplate` 제거. 템플릿 등록 검증이 "스키마 문법"에서 **레시피 유효성**(참조 `componentUId` 존재) + **theme 허용값**(OptionDefinition 카탈로그)으로 바뀌었다. 새 에러코드 `INVALID_TEMPLATE_RECIPE`·`INVALID_TEMPLATE_THEME`.
+- **🔴 API 파괴적 변경**: `GET /api/template/v1/variant/{uid}`(VariantResponse) → **`GET /api/template/v1/{uid}`(TemplateResponse 전체 상세)**. 프론트 연동 시 확인 필요.
+- **결정: Template 조회에 Redis 캐싱 적용**(`TPL:` 키, TTL 30일, Component와 동일 패턴). **단, 이는 성능 연구 C("이 규모에서 캐시가 애초에 이득인가, C1이 이기면 Redis를 넣지 않는다")의 결론을 앞지른 것이다.** 연구 C 결과에 따라 되돌릴 수 있음을 전제로 진행하기로 결정. 또한 템플릿 수정/삭제가 아직 없어 **캐시 무효화 경로가 없다**(등록 시 적재만) — 수정 기능 추가 시 필수이며, 성능 연구의 탈락 조건 "stale read 0건"과 직결.
+- **🔴 `ComponentRepository.findbyComponentUid`(소문자 b) 오타로 서버가 기동 불가 상태였다** — 커밋 `3117208` 이후 계속. Spring Data가 `By` 구분자를 못 찾아 메서드명 전체를 프로퍼티로 해석 → `PropertyReferenceException` → 리포지토리 빈 생성 실패 → ApplicationContext 로드 실패. `findByComponentUId`로 수정(+`ComponentServiceImpl` 호출부). 기록: [TROUBLE-component-repository-query-method-typo.md](./TROUBLE-component-repository-query-method-typo.md)
+- **교훈(재발 방지의 핵심)**: 이 버그가 커밋 후 계속 살아있었던 이유는 **`compileTestJava`가 깨져 있어 `test` 태스크에 도달하지 못했고, 따라서 `contextLoads()`가 한 번도 실행되지 않았기 때문**이다. 컴파일 에러 방치 = 단순 부채가 아니라 **회귀 탐지 능력의 상실**. 스테일 테스트는 즉시 정리한다.
+- **후속 과제**: 미사용 `INVALID_SECTION_VALUES` 제거. `ComponentResponse.frontendBinding` 네이밍 통일(값·레시피 키는 `componentUId`인데 필드명만 다름). `Component.@Builder`에 `componentType` 부재 → `@Setter` 2단 주입이라 타입 없는 Component 생성 가능. `@DataJpaTest` 슬라이스 도입 시 파생 쿼리 오타를 DB 없이 조기 검출 가능.
+- **다음**: 계획 D — Invitation 저장 시 `templateUid` → 섹션별 `componentUId` → `Component.data_schema` → `SchemaValidator.validateData`로 `section_values` 검증 + `selected_options` 검증.

@@ -1,11 +1,11 @@
-package smally.server.domain.template.dto;
+package smally.server.domain.component.dto;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Map;
 import org.junit.jupiter.api.Test;
-import smally.server.domain.component.dto.ComponentResponse;
 import smally.server.domain.component.entity.Component;
+import smally.server.domain.component.entity.ComponentType;
 
 class ComponentResponseTest {
 
@@ -14,11 +14,11 @@ class ComponentResponseTest {
         Map<String, Object> optionSchema = Map.of("type", "object");
         Component component = Component.builder()
                 .name("클래식 갤러리")
-                .componentType("gallery")
-                .frontendBinding("GalleryGrid")
+                .componentUId("GalleryGrid")
                 .dataSchema(Map.of("type", "object")) // 서버 검증 전용
                 .optionSchema(optionSchema)
                 .build();
+        component.setComponentType(ComponentType.builder().name("gallery").build());
 
         ComponentResponse response = ComponentResponse.from(component);
 
