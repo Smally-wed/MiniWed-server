@@ -51,3 +51,4 @@ bin/
 .env
 application-local.properties
 application-local.yml
+.gstack/
