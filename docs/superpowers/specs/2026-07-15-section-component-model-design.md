@@ -36,10 +36,10 @@
 
 1. **컴포넌트 종류(`ComponentType`)와 컴포넌트(`Component`)를 분리해 1급화한다.**
    - `ComponentType`: 종류 카테고리(메인이미지·인사말·… 12종). **확장성을 위해 DB 테이블**로 관리(기존 `Category`와 같은 패턴).
-   - `Component`: 실제 UI 조각. 자신의 **종류(→`ComponentType`)**, **프론트 연결(`frontendBinding`: 어느 React 컴포넌트에 매핑되는지)**, **데이터 계약(`data_schema`)**, **컴포넌트 옵션(`option_schema`: 표시모드·타입·폰트사이즈·텍스트 위치 등)**을 가진다.
+   - `Component`: 실제 UI 조각. 자신의 **종류(→`ComponentType` FK)**, **프론트 연결 겸 외부 식별자(`componentUId`: 어느 React 컴포넌트에 매핑되는지. 고유·불변)**, **데이터 계약(`data_schema`)**, **컴포넌트 옵션(`option_schema`: 표시모드·타입·폰트사이즈·텍스트 위치 등)**을 가진다.
    - 새 컴포넌트 **코드**(프론트 React)는 배포가 필요하지만, 이 메타 행은 DB에 저장되어 서버가 검증·관리한다.
 
-2. **템플릿 = 레시피.** 템플릿은 `[{ componentId, 순서, 고정옵션값(제목 위치·크기 등), 편집가능여부 }, …]` + `theme`(전역 옵션 선택값) + 메타(name/category/thumbnail). **같은 컴포넌트를 여러 템플릿이 공유**하되 고정옵션값으로 차별화한다. **배포 없이** 데이터로 등록한다.
+2. **템플릿 = 레시피.** 템플릿은 `[{ componentUId, 순서, 고정옵션값(제목 위치·크기 등), 편집가능여부 }, …]` + `theme`(전역 옵션 선택값) + 메타(name/category/thumbnail). **같은 컴포넌트를 여러 템플릿이 공유**하되 고정옵션값으로 차별화한다. **배포 없이** 데이터로 등록한다.
 
 3. **옵션은 두 스코프로 나눈다.**
    - **컴포넌트 옵션**(표시모드·타입·폰트사이즈·텍스트 위치 등): `Component.option_schema`에서 **컴포넌트 자체가 관리**.
@@ -59,8 +59,8 @@ ComponentType (종류 카테고리, 확장용 DB 테이블)
 
 Component (실제 UI 조각, 마스터)
   id, name
-  componentType (→ ComponentType)            // 어떤 종류인지
-  frontend_binding (string)                  // 프론트 어느 React 컴포넌트에 연결되는지 (키/경로)
+  componentType (→ ComponentType, @ManyToOne FK)  // 어떤 종류인지
+  componentUId  (string, 고유·불변)           // 프론트 어느 React 컴포넌트에 연결되는지 (키) 겸 외부 식별자
   data_schema   (jsonb, JSON Schema)         // 이 컴포넌트가 받는 고객 데이터 계약 (검증용)
   option_schema (jsonb, JSON Schema)         // 컴포넌트 자체 옵션(표시모드·타입·폰트사이즈·텍스트 위치…)
 
@@ -69,7 +69,7 @@ OptionDefinition (전역 옵션 마스터, 템플릿별 관리)
 
 Template (레시피, 무배포 등록)
   templateUid, name, category, thumbnail
-  sections (jsonb)   // [{ componentId, 고정옵션값(제목 위치·크기…), editable(사용자 편집 허용 키) }, … 순서]
+  sections (jsonb)   // [{ componentUId, 고정옵션값(제목 위치·크기…), editable(사용자 편집 허용 키) }, … 순서]
   theme    (jsonb)   // { OptionDefinition.key → 선택값 }
 
 Invitation (고객 작성)
@@ -91,12 +91,12 @@ Invitation (고객 작성)
   SchemaValidator.validateSchema(component.optionSchema)   // 메타검증
 
 템플릿 등록:
-  각 sections[].componentId 가 존재하는 Component인지 검증 (레시피 유효성)
+  각 sections[].componentUId 가 존재하는 Component인지 검증 (레시피 유효성)
   theme 의 각 key 가 OptionDefinition 카탈로그에 있고 값이 allowed_values에 드는지 검증
 
 청첩장 저장:
   for each 섹션 인스턴스 in 템플릿.sections:
-    schema = Component(sections[i].componentId).data_schema
+    schema = Component(sections[i].componentUId).data_schema
     SchemaValidator.validateData(schema, section_values[sectionId])   // 데이터검증
   옵션: 각 컴포넌트 option_schema로 selected_options 검증 (+ x-editable 후처리)
 ```
@@ -135,7 +135,7 @@ Invitation (고객 작성)
 | `type` (String) | **`ComponentType` 테이블 신설** + `Component.componentType` FK 참조로 분리 |
 | `data_schema`, `option_schema` | `Component`에 유지 |
 | `variants` (string[]) | **제거** — 디자인 차별은 별도 `Component` 행 + 템플릿 등록 시 고정옵션값으로 |
-| (없음) | **`frontend_binding` 추가** |
+| (없음) | **`componentUId` 추가** (프론트 연결 키 겸 외부 식별자, 고유·불변) |
 
 ## 7. 범위 밖 (후속)
 
