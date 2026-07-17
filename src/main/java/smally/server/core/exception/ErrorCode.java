@@ -24,7 +24,13 @@ public enum ErrorCode {
     CATEGORY_NOT_FOUND(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "존재하지 않는 카테고리입니다."),
     DUPLICATE_CATEGORY(HttpStatus.CONFLICT, "CONFLICT", "이미 존재하는 카테고리입니다."),
     INVALID_SECTION_VALUES(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "청첩장 입력값이 템플릿 스키마와 맞지 않습니다."),
-    INVALID_TEMPLATE_OPTIONS_SCHEMA(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "옵션 스키마가 유효한 JSON Schema가 아닙니다.");
+    DUPLICATE_COMPONENT_TYPE(HttpStatus.CONFLICT, "CONFLICT", "이미 존재하는 컴포넌트 종류입니다."),
+    COMPONENT_TYPE_NOT_FOUND(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "존재하지 않는 컴포넌트 종류입니다."),
+    COMPONENT_NOT_FOUND(HttpStatus.NOT_FOUND, "NOT_FOUND", "컴포넌트를 찾을 수 없습니다."),
+    INVALID_COMPONENT_SCHEMA(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "컴포넌트 스키마가 유효한 JSON Schema가 아닙니다."),
+    DUPLICATE_OPTION_DEFINITION(HttpStatus.CONFLICT, "CONFLICT", "이미 존재하는 옵션 키입니다."),
+    OPTION_DEFINITION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOT_FOUND", "옵션 정의를 찾을 수 없습니다."),
+    INVALID_OPTION_DEFAULT(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "기본값이 허용값 목록에 없습니다.");
 
     private final HttpStatus status;
     private final String code;
