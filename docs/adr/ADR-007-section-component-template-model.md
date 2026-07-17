@@ -21,9 +21,11 @@ ADR-002는 템플릿마다 `section_schema`(JSON Schema)를 붙여 청첩장 데
 
 ## 결정 (Decision)
 
-1. **컴포넌트 종류(`ComponentType`)와 컴포넌트(`Component`)를 분리해 1급화한다.** `ComponentType`은 종류 카테고리(메인이미지·인사말·… 12종)로 **확장성을 위해 DB 테이블**로 관리한다(기존 `Category` 패턴). `Component`는 실제 UI 조각으로 자신의 **종류(→`ComponentType`)**, **프론트 연결 `frontend_binding`**, **데이터 계약 `data_schema`**(JSON Schema), **컴포넌트 옵션 `option_schema`**(JSON Schema)를 가진다. 컴포넌트 **코드**(프론트 React)는 여전히 배포가 필요하지만, 이 메타 행은 데이터로서 서버가 검증·관리한다.
+1. **컴포넌트 종류(`ComponentType`)와 컴포넌트(`Component`)를 분리해 1급화한다.** `ComponentType`은 종류 카테고리(메인이미지·인사말·… 12종)로 **확장성을 위해 DB 테이블**로 관리한다(기존 `Category` 패턴). `Component`는 실제 UI 조각으로 자신의 **종류(→`ComponentType` FK)**, **프론트 연결 겸 외부 식별자 `componentUId`**(고유·불변), **데이터 계약 `data_schema`**(JSON Schema), **컴포넌트 옵션 `option_schema`**(JSON Schema)를 가진다. 컴포넌트 **코드**(프론트 React)는 여전히 배포가 필요하지만, 이 메타 행은 데이터로서 서버가 검증·관리한다.
 
-2. **템플릿을 레시피로 재정의한다.** 템플릿 = `sections`(순서 있는 `[{ componentId, 고정옵션값(제목 위치·크기 등), editable }]`) + `theme` + 메타. **같은 컴포넌트를 여러 템플릿이 공유**하되 고정옵션값으로 차별화한다. **배포 없이** 데이터로 등록한다. 템플릿 등록 검증은 "스키마 문법"이 아니라 **레시피 유효성**(참조 컴포넌트 존재)이 된다.
+   `componentUId`는 프론트의 어느 React 컴포넌트에 연결되는지를 가리키는 키(예: `"GalleryGrid"`)이자, 레시피·API가 컴포넌트를 지목하는 외부 식별자다. 하나의 필드가 두 역할을 겸한다.
+
+2. **템플릿을 레시피로 재정의한다.** 템플릿 = `sections`(순서 있는 `[{ componentUId, 고정옵션값(제목 위치·크기 등), editable }]`) + `theme` + 메타. **같은 컴포넌트를 여러 템플릿이 공유**하되 고정옵션값으로 차별화한다. **배포 없이** 데이터로 등록한다. 템플릿 등록 검증은 "스키마 문법"이 아니라 **레시피 유효성**(참조 컴포넌트 존재)이 된다.
 
 3. **스키마 위치를 컴포넌트 레벨로 내린다(ADR-002 부분 개정).** 청첩장 데이터 검증은 저장 시점에, **각 섹션 인스턴스가 참조하는 `Component`의 `data_schema`로** 수행한다. ADR-002의 핵심(JSON Schema + jsonb + 서버가 저장 시점에 검증)은 유지되고, 스키마가 붙는 **위치만** 템플릿 → 컴포넌트로 바뀐다. 공용 `SchemaValidator`(엔진)는 그대로 재사용한다.
 
@@ -33,9 +35,9 @@ ADR-002는 템플릿마다 `section_schema`(JSON Schema)를 붙여 청첩장 데
 
 데이터 모델(잠정):
 - `component_types`: `name`(고유키, 12종)
-- `components`: `component_type_id`(FK → component_types), `name`, `frontend_binding`, `data_schema`(jsonb), `option_schema`(jsonb)
+- `components`: `component_type`(FK → component_types), `name`, `componentUId`(고유·불변, 프론트 연결 키 겸 외부 식별자), `data_schema`(jsonb), `option_schema`(jsonb)
 - `option_definitions`: `key`(고유), `label`, `control_type`, `allowed_values`(jsonb), `default_value`(jsonb)
-- `templates`: `template_uid`, `name`, `category`, `thumbnail`, **`sections`(jsonb, `[{componentId, 고정옵션값, editable}]` 순서 리스트)**, **`theme`(jsonb, `{optionKey → 값}`)**
+- `templates`: `template_uid`, `name`, `category`, `thumbnail`, **`sections`(jsonb, `[{componentUId, 고정옵션값, editable}]` 순서 리스트)**, **`theme`(jsonb, `{optionKey → 값}`)**
 - `invitations`: `invitation_uid`, `user_id`, `template_uid`, `slug`, `status`, **`section_values`(jsonb, sectionId별)**, **`selected_options`(jsonb)**
 
 ## 고려한 대안 (Alternatives Considered)
@@ -90,7 +92,7 @@ ADR-002는 템플릿마다 `section_schema`(JSON Schema)를 붙여 청첩장 데
 **계획 A(Component 파운데이션, 미커밋 작업 트리) 재설계**: 이 세션에서 만든 `Component`는 종류와 컴포넌트를 한 엔티티에 뭉쳐 놨으므로 재설계한다(미커밋이라 마이그레이션 불요).
 - `Component.type`(String) → **`ComponentType` 테이블 신설** + `Component.componentType` FK로 분리.
 - `Component.variants`(string[]) → **제거**(디자인 차별은 별도 `Component` 행 + 템플릿 고정옵션값으로).
-- `Component`에 **`frontend_binding` 추가**. `data_schema`·`option_schema`는 유지.
+- `Component`에 **`componentUId` 추가**(프론트 연결 키 겸 외부 식별자, 고유·불변). `data_schema`·`option_schema`는 유지.
 - **`OptionDefinition`(전역 옵션 마스터) 신설** — 전역 옵션(폰트·애니메이션·색상 프리셋)을 관리자 데이터로 관리, 템플릿 `theme`가 참조.
 
 ### 후속 조치 필요 사항
