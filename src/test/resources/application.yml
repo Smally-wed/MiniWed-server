@@ -18,8 +18,20 @@ spring:
       port: 6379
       password: ""
 
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 10MB
+
 # 테스트용 JWT 설정 (실제 운영 secret 아님)
 jwt:
   secret: test-jwt-secret-key-for-local-testing-only-1234567890
   access-token-expiration: 1800
   refresh-token-expiration: 1209600
+
+aws:
+  s3:
+    bucket: test-bucket
+    region: ap-northeast-2
+    presigned-ttl-seconds: 600
+    max-size-bytes: 5242880

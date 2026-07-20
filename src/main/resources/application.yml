@@ -10,7 +10,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: validate
     properties:
       hibernate:
         format_sql: true
@@ -22,7 +22,19 @@ spring:
       port: ${REDIS_PORT}
       password: ${REDIS_PASSWORD}
 
+  servlet:
+    multipart:
+      max-file-size: 5MB         # 썸네일 파일 한도(= aws.s3.max-size-bytes). 초과 시 IMAGE_TOO_LARGE
+      max-request-size: 10MB     # 파일 + JSON 파트 합산 요청 한도
+
 jwt:
   secret: ${JWT_SECRET}
   access-token-expiration: 1800        # access 토큰 만료(초) = 30분
   refresh-token-expiration: 1209600    # refresh 토큰 만료(초) = 14일
+
+aws:
+  s3:
+    bucket: ${S3_BUCKET}
+    region: ${AWS_REGION:ap-northeast-2}
+    presigned-ttl-seconds: 600        # presigned GET URL 만료(초) = 10분
+    max-size-bytes: 5242880           # 썸네일 최대 크기 = 5MB

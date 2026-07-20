@@ -34,7 +34,10 @@ public enum ErrorCode {
     OPTION_DEFINITION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOT_FOUND", "옵션 정의를 찾을 수 없습니다."),
     INVALID_OPTION_DEFAULT(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "기본값이 허용값 목록에 없습니다."),
     INVALID_TEMPLATE_RECIPE(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "템플릿 레시피가 유효하지 않습니다."),
-    INVALID_TEMPLATE_THEME(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "theme 값이 옵션 정의의 허용값에 없습니다.");
+    INVALID_TEMPLATE_THEME(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "theme 값이 옵션 정의의 허용값에 없습니다."),
+    INVALID_IMAGE_TYPE(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "이미지 파일만 업로드할 수 있습니다."),
+    IMAGE_TOO_LARGE(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "이미지 크기가 허용 범위를 초과했습니다."),
+    IMAGE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_SERVER_ERROR", "이미지 업로드에 실패했습니다.");
 
     private final HttpStatus status;
     private final String code;
