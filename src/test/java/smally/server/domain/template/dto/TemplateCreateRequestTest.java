@@ -18,9 +18,9 @@ class TemplateCreateRequestTest {
         Map<String, Object> theme = Map.of("fontSize", "large");
 
         TemplateCreateRequest request = new TemplateCreateRequest(
-                "클래식 화이트", "https://cdn/thumb.png", "클래식", sections, theme);
+                "클래식 화이트", "클래식", sections, theme);
 
-        Template template = request.toTemplate();
+        Template template = request.toTemplate("https://cdn/thumb.png");
 
         assertThat(template.getName()).isEqualTo("클래식 화이트");
         assertThat(template.getThumbnail()).isEqualTo("https://cdn/thumb.png");

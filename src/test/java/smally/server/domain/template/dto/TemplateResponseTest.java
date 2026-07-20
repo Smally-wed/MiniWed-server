@@ -27,4 +27,17 @@ class TemplateResponseTest {
         assertThat(response.sections()).isEqualTo(sections);
         assertThat(response.theme()).isEqualTo(theme);
     }
+
+    @Test
+    void withThumbnail_thumbnail만_교체한_복사본을_만든다() {
+        TemplateResponse origin = new TemplateResponse(
+                "uid", "클래식", "templates/thumbnails/a.jpg", "클래식",
+                java.util.List.of(), null);
+
+        TemplateResponse replaced = origin.withThumbnail("https://signed/x");
+
+        org.assertj.core.api.Assertions.assertThat(replaced.thumbnail()).isEqualTo("https://signed/x");
+        org.assertj.core.api.Assertions.assertThat(replaced.name()).isEqualTo("클래식");
+        org.assertj.core.api.Assertions.assertThat(replaced.templateUid()).isEqualTo("uid");
+    }
 }

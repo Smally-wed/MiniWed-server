@@ -1,12 +1,15 @@
 package smally.server.domain.template.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,9 +17,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import smally.server.core.cache.RedisCacheService;
 import smally.server.core.exception.ErrorCode;
 import smally.server.core.exception.exceptions.OptionDefinitionException;
 import smally.server.domain.template.dto.OptionDefinitionCreateRequest;
+import smally.server.domain.template.dto.OptionDefinitionResponse;
 import smally.server.domain.template.entity.OptionDefinition;
 import smally.server.domain.template.repository.OptionDefinitionRepository;
 
@@ -24,11 +29,12 @@ import smally.server.domain.template.repository.OptionDefinitionRepository;
 class OptionDefinitionServiceImplTest {
 
     @Mock OptionDefinitionRepository repository;
+    @Mock RedisCacheService redisCacheService;
     OptionDefinitionServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new OptionDefinitionServiceImpl(repository);
+        service = new OptionDefinitionServiceImpl(repository, redisCacheService);
     }
 
     private OptionDefinitionCreateRequest request(List<Object> allowed, Object def) {
@@ -106,5 +112,54 @@ class OptionDefinitionServiceImplTest {
         assertThatThrownBy(() -> service.getOptionDefinition("nope"))
                 .isInstanceOf(OptionDefinitionException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.OPTION_DEFINITION_NOT_FOUND);
+    }
+
+    @Test
+    void getOptionDefinition_캐시에_있으면_DB를_조회하지_않는다() {
+        OptionDefinitionResponse cached = new OptionDefinitionResponse(
+                "fontSize", "폰트 크기", "select", "global", List.of("small", "large"), "small");
+        when(redisCacheService.getCacheData("OPT:fontSize", OptionDefinitionResponse.class))
+                .thenReturn(cached);
+
+        assertThat(service.getOptionDefinition("fontSize")).isEqualTo(cached);
+
+        verify(repository, never()).findByKey(any());
+    }
+
+    @Test
+    void getOptionDefinition_캐시미스면_DB조회후_캐시에_저장한다() {
+        OptionDefinition entity = OptionDefinition.builder()
+                .key("fontSize").label("폰트 크기").controlType("select").scope("global")
+                .allowedValues(List.of("small", "large")).defaultValue("small")
+                .build();
+        when(redisCacheService.getCacheData("OPT:fontSize", OptionDefinitionResponse.class))
+                .thenReturn(null);
+        when(repository.findByKey("fontSize")).thenReturn(Optional.of(entity));
+
+        OptionDefinitionResponse result = service.getOptionDefinition("fontSize");
+
+        assertThat(result.key()).isEqualTo("fontSize");
+        verify(redisCacheService).setCacheData(eq("OPT:fontSize"), eq(result), any(Duration.class));
+    }
+
+    @Test
+    void getAllOptionDefinitions_캐시에_있으면_DB를_조회하지_않는다() {
+        List<OptionDefinitionResponse> cached = List.of(new OptionDefinitionResponse(
+                "fontSize", "폰트 크기", "select", "global", List.of("small", "large"), "small"));
+        when(redisCacheService.getCacheData("OPT:ALL", List.class)).thenReturn(cached);
+
+        assertThat(service.getAllOptionDefinitions()).isEqualTo(cached);
+
+        verify(repository, never()).findAll();
+    }
+
+    @Test
+    void createOptionDefinition_저장후_전체목록_캐시를_삭제한다() {
+        when(repository.existsByKey("fontSize")).thenReturn(false);
+
+        service.createOptionDefinition(request(List.of("small", "large"), "small"));
+
+        verify(redisCacheService).setCacheData(eq("OPT:fontSize"), any(), any(Duration.class));
+        verify(redisCacheService).deleteCacheData("OPT:ALL");
     }
 }

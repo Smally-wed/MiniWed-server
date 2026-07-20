@@ -33,17 +33,15 @@ public class OptionDefinitionController {
 
     @GetMapping("/v1")
     public ResponseEntity<ApiResponse<List<OptionDefinitionResponse>>> getAllOptionDefinitions() {
-        List<OptionDefinitionResponse> body = optionDefinitionService.getAllOptionDefinitions().stream()
-                .map(OptionDefinitionResponse::from)
-                .toList();
-        return ResponseEntity.ok(ApiResponse.of(HttpStatus.OK, body));
+        return ResponseEntity.ok(
+                ApiResponse.of(HttpStatus.OK, optionDefinitionService.getAllOptionDefinitions()));
     }
 
     @GetMapping("/v1/{key}")
     public ResponseEntity<ApiResponse<OptionDefinitionResponse>> getOptionDefinition(
             @PathVariable String key
     ) {
-        return ResponseEntity.ok(ApiResponse.of(HttpStatus.OK,
-                OptionDefinitionResponse.from(optionDefinitionService.getOptionDefinition(key))));
+        return ResponseEntity.ok(
+                ApiResponse.of(HttpStatus.OK, optionDefinitionService.getOptionDefinition(key)));
     }
 }
