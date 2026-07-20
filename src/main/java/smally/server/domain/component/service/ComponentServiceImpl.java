@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import smally.server.core.aop.ExecutionTimeLog;
 import smally.server.core.cache.RedisCacheService;
 import smally.server.core.exception.ErrorCode;
 import smally.server.core.exception.exceptions.ComponentException;
@@ -35,6 +36,7 @@ public class ComponentServiceImpl implements ComponentService, InternalComponent
 
     @Override
     @Transactional
+    @ExecutionTimeLog("컴포넌트 생성")
     public void createComponent(ComponentCreateRequest request) {
         ComponentType componentType = componentTypeService.getComponentByName(request.componentTypeName());
 
@@ -55,6 +57,7 @@ public class ComponentServiceImpl implements ComponentService, InternalComponent
 
     @Override
     @Transactional(readOnly = true)
+    @ExecutionTimeLog("컴포넌트 단일 조회")
     public ComponentResponse getComponent(String componentUid) {
         String componentKey = COMPONENT_CACHE_kEY + componentUid;
         ComponentResponse cached = redisCacheService.getCacheData(componentKey, ComponentResponse.class);
@@ -74,6 +77,7 @@ public class ComponentServiceImpl implements ComponentService, InternalComponent
 
     @Override
     @Transactional(readOnly = true)
+    @ExecutionTimeLog("컴포넌트 전체 조회")
     public List<ComponentResponse> getAllComponents() {
         @SuppressWarnings("unchecked")
         List<ComponentResponse> cached =
@@ -102,6 +106,7 @@ public class ComponentServiceImpl implements ComponentService, InternalComponent
 
     @Override
     @Transactional(readOnly = true)
+    @ExecutionTimeLog("컴포넌트 Json Data 검증")
     public void validateComponentJsontData(String componentUid, Map<String, Object> data,Map<String, Object> optionData ) {
         Component component = componentRepository.findByComponentUId(componentUid)
                 .orElseThrow(() -> new ComponentException(ErrorCode.COMPONENT_NOT_FOUND));
@@ -110,7 +115,7 @@ public class ComponentServiceImpl implements ComponentService, InternalComponent
             throw new ComponentException(ErrorCode.INVALID_COMPONENT_DATA);
         }
 
-        if(!schemaValidator.validateData(component.getDataSchema(),optionData).isEmpty()){
+        if(!schemaValidator.validateData(component.getOptionSchema(),optionData).isEmpty()){
             throw new ComponentException(ErrorCode.INVALID_COMPONENT_OPTION_DATA);
         }
     }
