@@ -16,7 +16,15 @@ public class RedisCacheService {
     public <T> T getCacheData(String key, Class<T> type) {
         try {
             Object value = redisTemplate.opsForValue().get(key);
-            return type.isInstance(value) ? type.cast(value) : null;
+            if (value == null) {
+                return null;
+            }
+            if (!type.isInstance(value)) {
+                log.warn("[Cache] type mismatch key : {}, expected : {}, actual : {}",
+                        key, type.getSimpleName(), value.getClass().getName());
+                return null;
+            }
+            return type.cast(value);
         } catch (Exception e) {
             log.error("[Cache] redis cache get Failed : {}", e.getMessage());
             return null;
