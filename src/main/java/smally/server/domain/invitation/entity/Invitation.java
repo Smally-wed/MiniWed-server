@@ -1,4 +1,4 @@
-package smally.server.domain.invitation.entity.dto;
+package smally.server.domain.invitation.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

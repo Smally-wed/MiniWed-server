@@ -1,4 +1,4 @@
-package smally.server.domain.image.entity.dto;
+package smally.server.domain.image.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -17,7 +17,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import smally.server.domain.common.entity.BaseEntity;
 import smally.server.domain.image.enums.ImageStatus;
-import smally.server.domain.invitation.entity.dto.Invitation;
+import smally.server.domain.invitation.entity.Invitation;
 
 /**
  * 업로드 추적 (ADR-001) — 고아 객체(orphan) 정리용. 확정 전에는 invitation 미연결(null).
