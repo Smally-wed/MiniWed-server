@@ -22,4 +22,8 @@ public record TemplateResponse(
                 template.getTheme()
         );
     }
+
+    public TemplateResponse withThumbnail(String thumbnail) {
+        return new TemplateResponse(templateUid, name, thumbnail, category, sections, theme);
+    }
 }
