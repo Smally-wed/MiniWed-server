@@ -24,7 +24,7 @@
 | `slug` | 유지 | 발행 시 발급, 그 전 null |
 | `status` | 유지 | `DRAFT` / `PUBLISHED` |
 | `sectionValues` (jsonb) | **의미 변경** | `{sectionId → {필드값}}` |
-| `selectedOptions` (jsonb) | **신설** | `{optionKey → 값}` |
+| `selectedOptions` (jsonb) | **신설** | `{sectionId → {optionKey → 값}}`. `sectionValues`와 동일하게 섹션 인스턴스 단위로 키잉한다 |
 | `publishedAt` | 유지 | |
 
 도메인 메서드(세터 대신):
@@ -96,9 +96,16 @@ boolean existsBySlug(String slug);
     "gallery-2": { "photos": ["invitations/7/c77e….jpg"] },
     "account":   { "groom": {"bank": "…", "number": "…"}, "bride": {"bank": "…", "number": "…"} }
   },
-  "selectedOptions": { "columns": 3 }
+  "selectedOptions": {
+    "gallery-1": { "columns": 3 },
+    "gallery-2": { "columns": 2 }
+  }
 }
 ```
+
+`selectedOptions`가 `sectionId`로 키잉되므로 두 갤러리가 서로 다른 열 수를 가질 수 있다.
+전역 옵션(폰트·색상 등 `theme`)은 템플릿이 정하며 사용자가 바꾸지 않는다 —
+ADR-007이 `theme`를 템플릿별 관리로 둔 결정을 그대로 따른다.
 
 계좌번호·오시는길·연락처는 전부 `Component.dataSchema`가 정의하므로 서버 스키마 변경 없이 표현된다.
 
@@ -158,8 +165,8 @@ public record ImageUploadResponse(String objectKey, String url) {}
 // 하객 공개 조회 — 렌더에 필요한 것을 한 번에
 public record PublicInvitationResponse(
         String invitationUid,
-        List<Map<String, Object>> sections,    // 템플릿 레시피
-        Map<String, Object> theme,             // 템플릿 테마 + selectedOptions 덮어쓴 결과
+        List<Map<String, Object>> sections,    // 템플릿 레시피 + selectedOptions를 섹션별로 덮어쓴 결과
+        Map<String, Object> theme,             // 템플릿 테마 그대로
         Map<String, Object> sectionValues,     // 이미지 키 → presigned URL 치환됨
         Instant publishedAt
 ) {}
@@ -185,8 +192,9 @@ public record PublicInvitationResponse(
 1. 소유자 확인            invitation.isOwnedBy(currentUserId)  → 아니면 403
 2. 템플릿 조회            templateService.getTemplate(templateUid)  (Redis 캐시 경유)
 3. sectionId 화이트리스트  sectionValues.keySet() ⊆ 템플릿 sectionId 집합 → 아니면 400
-4. 옵션 검증              selectedOptions의 각 키가
-                          (a) 어느 섹션의 editable 목록에 있고
+4. 옵션 검증              selectedOptions.keySet() ⊆ 템플릿 sectionId 집합이고,
+                          각 sectionId의 optionKey가
+                          (a) 그 섹션의 editable 목록에 있고
                           (b) OptionDefinition.allowedValues에 값이 포함되는가
 5. 이미지 연결            §6
 6. 저장                   invitation.updateContent(...)
@@ -202,7 +210,9 @@ jsonb에 쌓이고, 나중에 그 템플릿이 해당 섹션을 갖게 되면 �
 ```
 6. 전 섹션 완전 검증  템플릿의 모든 sectionId에 대해
                      internalComponentService.validateComponentJsontData(
-                         componentUId, sectionValues.get(sectionId), 섹션 옵션값)
+                         componentUId,
+                         sectionValues.get(sectionId),
+                         템플릿 섹션 options + selectedOptions.get(sectionId) 병합값)
                      → required 미충족 포함 위반 시 400
 7. slug 발급 + publish()
 ```

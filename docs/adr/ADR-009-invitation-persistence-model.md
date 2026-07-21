@@ -29,7 +29,7 @@ ADR-007은 후속 조치로 "실제 저장 endpoint·payload 형태 확인 후 `
 `Template.sections`의 각 원소는 `sectionId`(템플릿 내 고유)를 **필수**로 가진다. 템플릿 등록 검증(`validateRecipe`)에 `sectionId` 존재·중복 검사를 추가한다. `Invitation.section_values`는 `{sectionId → {필드값}}` 구조가 되고, ERD의 섹션 이름 키 예시는 폐기한다.
 
 **2. `Invitation`에 `invitation_uid`(UUID)와 `selected_options`(jsonb)를 추가한다.**
-`invitation_uid`는 `Template.template_uid`와 동일한 패턴의 외부 노출 식별자로, 모든 편집 API가 PK 대신 이것을 쓴다. `selected_options`는 ADR-007 결정 4대로 사용자가 고른 옵션값을 담으며, 템플릿에서 `editable: true`로 열어 둔 옵션만 허용한다.
+`invitation_uid`는 `Template.template_uid`와 동일한 패턴의 외부 노출 식별자로, 모든 편집 API가 PK 대신 이것을 쓴다. `selected_options`는 ADR-007 결정 4대로 사용자가 고른 옵션값을 담되, `section_values`와 **동일하게 `sectionId`로 키잉한다**(`{sectionId → {optionKey → 값}}`). 같은 컴포넌트를 두 번 쓰는 템플릿에서 각 인스턴스가 다른 옵션을 갖게 하려면 값과 옵션이 같은 식별 체계를 써야 하기 때문이다. 허용 범위는 템플릿 섹션의 `editable` 목록에 있는 옵션 키로 제한한다. 전역 옵션(`theme`)은 ADR-007대로 템플릿이 정하며 사용자가 바꾸지 않는다.
 
 **3. 검증을 저장 단계에 따라 나눈다 — DRAFT는 구조만, PUBLISHED는 전부.**
 
