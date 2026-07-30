@@ -41,6 +41,7 @@ public enum ErrorCode {
     INVITATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOT_FOUND", "청첩장을 찾을 수 없습니다."),
     INVITATION_ACCESS_DENIED(HttpStatus.FORBIDDEN, "FORBIDDEN", "해당 청첩장에 대한 권한이 없습니다."),
     INVITATION_ALREADY_PUBLISHED(HttpStatus.CONFLICT, "CONFLICT", "이미 발행된 청첩장입니다."),
+    INVITATION_NOT_PUBLISHED(HttpStatus.CONFLICT, "CONFLICT", "발행되지 않은 청첩장입니다."),
     UNKNOWN_SECTION_ID(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "템플릿에 없는 섹션입니다."),
     INVALID_INVITATION_OPTIONS(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "수정할 수 없거나 허용되지 않은 옵션 값입니다."),
     IMAGE_NOT_LINKABLE(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "연결할 수 없는 이미지입니다."),

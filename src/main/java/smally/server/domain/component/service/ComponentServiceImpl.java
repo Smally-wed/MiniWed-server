@@ -107,15 +107,21 @@ public class ComponentServiceImpl implements ComponentService, InternalComponent
     @Override
     @Transactional(readOnly = true)
     @ExecutionTimeLog("컴포넌트 Json Data 검증")
-    public void validateComponentJsontData(String componentUid, Map<String, Object> data,Map<String, Object> optionData ) {
+    public void validateComponentJsontData(String componentUid, Map<String, Object> data,
+                                           Map<String, Object> optionData) {
         Component component = componentRepository.findByComponentUId(componentUid)
                 .orElseThrow(() -> new ComponentException(ErrorCode.COMPONENT_NOT_FOUND));
 
-        if(!schemaValidator.validateData(component.getDataSchema(),data).isEmpty()){
+        Map<String, Object> safeData = data == null ? Map.of() : data;
+        if (!schemaValidator.validateData(component.getDataSchema(), safeData).isEmpty()) {
             throw new ComponentException(ErrorCode.INVALID_COMPONENT_DATA);
         }
 
-        if(!schemaValidator.validateData(component.getOptionSchema(),optionData).isEmpty()){
+        if (component.getOptionSchema() == null) {
+            return;
+        }
+        Map<String, Object> safeOptions = optionData == null ? Map.of() : optionData;
+        if (!schemaValidator.validateData(component.getOptionSchema(), safeOptions).isEmpty()) {
             throw new ComponentException(ErrorCode.INVALID_COMPONENT_OPTION_DATA);
         }
     }

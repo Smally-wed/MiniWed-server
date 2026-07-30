@@ -1,8 +1,10 @@
 package smally.server.domain.template.service;
 
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -84,15 +86,22 @@ public class TemplateServiceImpl implements TemplateService {
         return response.withThumbnail(storageService.presignedGetUrl(objectKey));
     }
 
-    /* List<Map> 을 받아서 section에 담겨있는 componentUid로 컴포넌트가 있는지 확인. 하나라도 없으면 error*/
+    /* 섹션마다 sectionId(템플릿 내 고유)와 실존하는 componentUId가 있어야 한다. */
     private void validateRecipe(List<Map<String, Object>> sections) {
         if (sections == null || sections.isEmpty()) {
             throw new TemplateException(ErrorCode.INVALID_TEMPLATE_RECIPE);
         }
 
+        Set<String> sectionIds = new HashSet<>();
         for (Map<String, Object> section : sections) {
-            Object rawUid = section.get("componentUId");
-            if (!(rawUid instanceof String componentUid) || componentUid.isBlank()) {
+            if (!(section.get("sectionId") instanceof String sectionId) || sectionId.isBlank()) {
+                throw new TemplateException(ErrorCode.INVALID_TEMPLATE_RECIPE);
+            }
+            // 같은 sectionId가 둘이면 청첩장 값이 어느 인스턴스 것인지 알 수 없다.
+            if (!sectionIds.add(sectionId)) {
+                throw new TemplateException(ErrorCode.INVALID_TEMPLATE_RECIPE);
+            }
+            if (!(section.get("componentUId") instanceof String componentUid) || componentUid.isBlank()) {
                 throw new TemplateException(ErrorCode.INVALID_TEMPLATE_RECIPE);
             }
             componentService.getComponent(componentUid);
@@ -114,7 +123,8 @@ public class TemplateServiceImpl implements TemplateService {
         });
     }
 
-    private Template getTemplateEntity(String templateUId) {
+    @Override
+    public Template getTemplateEntity(String templateUId) {
         UUID uid;
         try {
             uid = UUID.fromString(templateUId);

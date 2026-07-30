@@ -196,96 +196,122 @@
 
 ---
 
-## 3. 청첩장 제작 (F-INV) — USER *(미구현 — 설계안)*
+## 3. 청첩장 제작 (F-INV) — USER *(구현됨 — ADR-009)*
 
-모든 엔드포인트: **인증 필요**, 그리고 **본인 소유 청첩장만** 접근 가능(타인 접근 시 `403/404`).
+모든 엔드포인트: **인증 필요**, 그리고 **본인 소유 청첩장만** 접근 가능(타인 접근 시 `403 INVITATION_ACCESS_DENIED`, 미존재/UID 형식 오류 시 `404 INVITATION_NOT_FOUND`).
 
-### 3.1 청첩장 생성(임시저장) — `POST /api/invitations`
-근거: F-INV-01. 생성 시 `status = draft`.
+식별자는 외부 노출용 `invitationUid`(UUID)를 쓴다. 청첩장 값은 템플릿 섹션 인스턴스 식별자 `sectionId`로 키잉하며, 사용자가 고른 옵션은 `{sectionId → {optionKey → 값}}` 구조다(ADR-009). 검증은 저장 단계에 따라 다르다 — 임시저장은 구조·권한만, 발행은 컴포넌트 `dataSchema` 완결성까지(§3.6).
 
-- Request `{ "templateId": 1 }`  *(선택: 초기 sectionValues 포함 가능)*
-- Response `201` — `data`
+### 3.1 청첩장 생성(임시저장) — `POST /api/invitation/v1`
+근거: F-INV-01, ADR-009. 생성 시 `status = DRAFT`.
+
+- Request
   ```json
-  { "invitationId": 100, "templateId": 1, "status": "draft" }
+  {
+    "templateUid": "0198e2c1-…",
+    "sectionValues": { "cover": { "groomName": "철수" } },
+    "selectedOptions": { "gallery-1": { "columns": 3 } }
+  }
+  ```
+  `sectionValues`·`selectedOptions`는 선택(빈 청첩장으로 시작 가능).
+- 처리: 템플릿 조회 → 임시저장 검증(모르는 sectionId·허용 안 된 옵션 거부) → 저장 → 값에 등장하는 이미지 연결.
+- Response `201` — `data`(§3.3의 InvitationResponse 형태)
+
+### 3.2 내 청첩장 목록 — `GET /api/invitation/v1`
+- Response `200` — `data` — 본인 청첩장 배열(요약: `invitationUid`, `templateUid`, `status`, `slug`, `updatedAt`). 본문 jsonb는 목록에서 내려보내지 않는다.
+
+### 3.3 청첩장 상세(편집용) — `GET /api/invitation/v1/{invitationUid}`
+- 본인 것만. `sectionValues`의 이미지 키는 presigned GET URL로 치환되어 내려온다.
+- Response `200` — `data`
+  ```json
+  {
+    "invitationUid": "0198e2c1-…",
+    "templateUid": "0198e2b0-…",
+    "status": "DRAFT",
+    "slug": null,
+    "sectionValues": { "cover": { "groomName": "철수" },
+                       "gallery-1": { "photos": ["https://s3…(presigned)"] } },
+    "selectedOptions": { "gallery-1": { "columns": 3 } },
+    "publishedAt": null,
+    "updatedAt": "2026-07-21T10:00:00Z"
+  }
   ```
 
-### 3.2 내 청첩장 목록 — `GET /api/invitations`
-- Response `200` — `data` — 본인 청첩장 배열(요약: id, templateId, status, slug, updatedAt)
-
-### 3.3 청첩장 상세(편집용) — `GET /api/invitations/{invitationId}`
-- 본인 것만. `sectionValues` 전체 포함.
-- Response `200`
-
-### 3.4 섹션 입력 저장 + 스키마 검증 — `PUT /api/invitations/{invitationId}`
-근거: F-INV-02, ADR-002(write 시점 검증, 실패 시 틀린 필드 반환).
+### 3.4 섹션 입력 저장(임시저장) — `PUT /api/invitation/v1/{invitationUid}`
+근거: F-INV-02, ADR-009. **전체 교체**다(부분 병합 아님 — "지운 것"과 "안 보낸 것"을 구분할 수 없기 때문).
 
 - Request
   ```json
   {
     "sectionValues": {
-      "cover": { "groom_name": "…", "bride_name": "…", "date": "2026-10-10" },
-      "gallery": { "photos": ["invitations/100/uuid1.jpg"] }
-    }
+      "cover": { "groomName": "철수", "brideName": "영희" },
+      "gallery-1": { "photos": ["invitations/7/uuid1.jpg"] }
+    },
+    "selectedOptions": { "gallery-1": { "columns": 3 } }
   }
   ```
-- 처리: `template.sectionSchema`로 `sectionValues` 검증 → 통과분만 jsonb 저장.
-- Response `200`(저장된 값) / `400`(스키마 검증 실패, 틀린 필드 목록 — §0.4 형식 준용, code는 구현 시 확정)
+- 처리(DRAFT 기준): sectionId 화이트리스트 검사 → 옵션 검사 → 이미지 연결(본인 소유·PENDING만 LINKED, 빠진 키는 ORPHANED) → 저장. **발행 상태(PUBLISHED)면 발행 수준 완전 검증을 적용한다**(하객에게 노출된 청첩장이 깨지지 않도록).
+- Response `200`(저장된 값, 이미지 키는 presigned URL 치환) / `400 UNKNOWN_SECTION_ID`·`INVALID_INVITATION_OPTIONS`·`INVALID_SECTION_VALUES` / `400 IMAGE_NOT_LINKABLE`(남의 이미지·다른 청첩장에 연결된 이미지)
 
-### 3.5 사진 업로드 presigned URL 발급 — `POST /api/invitations/{invitationId}/images/presign`
-근거: F-INV-03, ADR-001(로그인 사용자 한정, 서버는 바이너리 미중계).
+### 3.5 사진 업로드 — `POST /api/invitation/v1/images` *(multipart/form-data)*
+근거: F-INV-03, ADR-009(ADR-001 부분 개정 — 서버 경유 업로드).
 
 - 인증: 필요(로그인 사용자만)
-- Request `{ "fileName": "photo1.jpg", "contentType": "image/jpeg" }`
-- 서버가 제약(허용 content-type, 최대 크기 등)을 적용해 발급.
-- Response `200` — `data`
+- Request: `multipart/form-data`, 파트명 `image` (허용 content-type `image/jpeg`·`image/png`, 최대 크기 서버 제한)
+- 처리: 서버가 S3에 업로드(`invitations/{userId}/{uuid}.{ext}`) → `ImageUpload(status=PENDING)` 기록. DB엔 객체 키만 저장.
+- Response `201` — `data`
   ```json
-  {
-    "uploadUrl": "https://s3…(presigned)",
-    "objectKey": "invitations/100/uuid1.jpg",
-    "expiresIn": 300
-  }
+  { "objectKey": "invitations/7/uuid1.jpg", "url": "https://s3…(presigned, 미리보기용)" }
   ```
-- 클라이언트는 `uploadUrl`로 S3에 직접 PUT 후, `objectKey`를 §3.4의 `sectionValues.photos`에 담아 저장.
-- 후속: 업로드 후 검증·고아 객체 정리 정책(ADR-001).
+- 클라이언트는 `objectKey`를 §3.4의 `sectionValues` 이미지 필드에 담아 저장 요청한다. 저장 시점에 그 청첩장으로 LINKED 확정된다.
+- 에러: `400 INVALID_IMAGE_TYPE`·`IMAGE_TOO_LARGE`
 
-### 3.6 청첩장 발행 — `POST /api/invitations/{invitationId}/publish`
-근거: F-INV-04, ADR-003(무작위 slug, published만 공개).
+### 3.6 청첩장 발행 — `POST /api/invitation/v1/{invitationUid}/publish`
+근거: F-INV-04, ADR-003·ADR-009(무작위 slug, PUBLISHED만 공개).
 
-- 처리: 최종 검증 통과 시 **추측 불가 무작위 slug** 발급, `status = published`, `published_at` 기록.
-- Response `200` — `data`
-  ```json
-  { "invitationId": 100, "status": "published", "slug": "a1b2c3d4e5", "publicUrl": "/i/a1b2c3d4e5" }
-  ```
-- 에러: `400`(검증 실패로 발행 불가)
+- 처리: 템플릿의 **모든 섹션**을 컴포넌트 `dataSchema`로 완전 검증(값이 없는 섹션도 빈 값으로 태워 `required` 위반으로 걸린다) → 통과 시 **추측 불가 무작위 slug**(22자 URL-safe) 발급, `status = PUBLISHED`, `publishedAt` 기록.
+- 재발행이면 기존 slug를 그대로 쓴다(공유된 링크가 살아 있어야 한다).
+- Response `200` — `data`(§3.3 형태, `status = PUBLISHED`, `slug` 채워짐)
+- 에러: `400`(스키마 완결성 검증 실패로 발행 불가) / `409 INVITATION_ALREADY_PUBLISHED`
 
-### 3.7 청첩장 수정/재발행 — (§3.4 재사용 + §3.6 재호출)
-근거: F-INV-05 (P1). 발행된 청첩장을 수정 후 재발행. slug는 유지.
+### 3.7 발행 취소 — `POST /api/invitation/v1/{invitationUid}/unpublish`
+근거: ADR-009. `status = DRAFT`로 되돌리고 `publishedAt`을 비운다. **slug는 회수하지 않는다**(이미 공유된 링크를 다른 청첩장이 넘겨받지 않도록). 재발행 시 같은 slug로 되살아난다.
 
-### 3.8 청첩장 삭제 — `DELETE /api/invitations/{invitationId}`
-근거: F-INV-06 (P1). 연결 이미지 정리 정책 필요(ADR-001 후속).
+- Response `200` — `data`(§3.3 형태, `status = DRAFT`)
+- 에러: `409 INVITATION_NOT_PUBLISHED`(발행되지 않은 청첩장)
 
-- Response `204`
+### 3.8 청첩장 삭제 — `DELETE /api/invitation/v1/{invitationUid}`
+근거: F-INV-06, ADR-009. 삭제 전 연결된 이미지를 모두 끊어 `ORPHANED`로 만든다(FK 제약 때문). 실제 S3 삭제는 후속 배치.
+
+- Response `200` — `data: null`(No Content 의미)
 
 ---
 
-## 4. 하객 공개 열람 (F-VIEW) — Public *(미구현 — 설계안)*
+## 4. 하객 공개 열람 (F-VIEW) — Public *(구현됨 — ADR-009)*
 
-### 4.1 슬러그로 공개 청첩장 조회 — `GET /api/public/invitations/{slug}`
-근거: F-VIEW-01, ADR-003(무인증 공개 + published만 노출).
+### 4.1 슬러그로 공개 청첩장 조회 — `GET /api/public/invitation/v1/{slug}`
+근거: F-VIEW-01, ADR-003·ADR-009(무인증 공개 + PUBLISHED만 노출).
 
 - 인증: **불필요**
-- 조건: `status = published`인 청첩장만. draft/미존재 slug는 `404`.
+- 조건: `status = PUBLISHED`인 청첩장만. DRAFT/미존재 slug는 모두 동일하게 `404 INVITATION_NOT_FOUND`(DRAFT의 존재 자체를 숨긴다).
+- 응답은 렌더러가 한 번의 호출로 필요한 것을 받도록 **템플릿 레시피 + 청첩장 값을 합친 페이로드**다. `sections`에는 사용자가 고른 옵션(`selectedOptions`)이 템플릿 고정옵션 위에 덮여 있고, `sectionValues`의 이미지 키는 presigned GET URL로 치환되어 있다.
 - Response `200` — `data`
   ```json
   {
-    "templateId": 1,
+    "invitationUid": "0198e2c1-…",
+    "sections": [
+      { "sectionId": "cover", "componentUId": "CoverBasic", "options": { "align": "center" } },
+      { "sectionId": "gallery-1", "componentUId": "GalleryGrid", "options": { "columns": 3 } }
+    ],
+    "theme": { "fontFamily": "serif" },
     "sectionValues": {
-      "cover": { "groom_name": "…", "bride_name": "…", "date": "2026-10-10" },
-      "gallery": { "photos": ["invitations/100/uuid1.jpg"] }
-    }
+      "cover": { "groomName": "철수", "brideName": "영희" },
+      "gallery-1": { "photos": ["https://s3…(presigned)"] }
+    },
+    "publishedAt": "2026-07-21T10:00:00Z"
   }
   ```
-- 프론트(Next.js)가 `templateId`에 대응하는 React 컴포넌트로 `sectionValues`를 렌더링. 사진은 S3/CDN에서 로드.
+- 프론트(Next.js)가 각 섹션의 `componentUId`에 대응하는 React 컴포넌트로 `sectionValues`를 렌더링. 사진은 presigned URL로 로드.
 - 응답에 검색엔진 비노출(noindex) 헤더 적용 권장(ADR-003).
 - **주의**: slug를 아는 사람은 계좌번호 등 민감정보 열람 가능(청첩장 특성상 감수 — ADR-003).
 
@@ -305,14 +331,15 @@
 | 템플릿 상세 | GET | `/api/templates/{templateId}` | - | ⬜ 미구현 | F-TPL-02 |
 | 템플릿 등록 | POST | `/api/admin/templates` | ADMIN | ⬜ 미구현 | F-TPL-03 |
 | 템플릿 수정 | PUT | `/api/admin/templates/{templateId}` | ADMIN | ⬜ 미구현 | F-TPL-03 |
-| 청첩장 생성 | POST | `/api/invitations` | USER | ⬜ 미구현 | F-INV-01 |
-| 내 청첩장 목록 | GET | `/api/invitations` | USER | ⬜ 미구현 | F-AUTH-03 |
-| 청첩장 상세 | GET | `/api/invitations/{invitationId}` | USER | ⬜ 미구현 | F-AUTH-03 |
-| 섹션 저장+검증 | PUT | `/api/invitations/{invitationId}` | USER | ⬜ 미구현 | F-INV-02 |
-| presign 발급 | POST | `/api/invitations/{invitationId}/images/presign` | USER | ⬜ 미구현 | F-INV-03 |
-| 발행 | POST | `/api/invitations/{invitationId}/publish` | USER | ⬜ 미구현 | F-INV-04 |
-| 삭제 | DELETE | `/api/invitations/{invitationId}` | USER | ⬜ 미구현 | F-INV-06 |
-| 공개 조회 | GET | `/api/public/invitations/{slug}` | - | ⬜ 미구현 | F-VIEW-01 |
+| 청첩장 생성 | POST | `/api/invitation/v1` | USER | ✅ 구현 | F-INV-01 |
+| 내 청첩장 목록 | GET | `/api/invitation/v1` | USER | ✅ 구현 | F-AUTH-03 |
+| 청첩장 상세 | GET | `/api/invitation/v1/{invitationUid}` | USER | ✅ 구현 | F-AUTH-03 |
+| 섹션 저장 | PUT | `/api/invitation/v1/{invitationUid}` | USER | ✅ 구현 | F-INV-02 |
+| 사진 업로드 | POST | `/api/invitation/v1/images` | USER | ✅ 구현 | F-INV-03 |
+| 발행 | POST | `/api/invitation/v1/{invitationUid}/publish` | USER | ✅ 구현 | F-INV-04 |
+| 발행 취소 | POST | `/api/invitation/v1/{invitationUid}/unpublish` | USER | ✅ 구현 | ADR-009 |
+| 삭제 | DELETE | `/api/invitation/v1/{invitationUid}` | USER | ✅ 구현 | F-INV-06 |
+| 공개 조회 | GET | `/api/public/invitation/v1/{slug}` | - | ✅ 구현 | F-VIEW-01 |
 
 > P2(방명록 F-EXT-01, RSVP F-EXT-02)는 범위 밖이라 미포함.
 
@@ -322,14 +349,15 @@
 
 | 주제 | 메모 | 관련 |
 |---|---|---|
-| 스키마 검증 실패 응답 code | 청첩장 저장(§3.4)용 code 정의 필요 | ADR-002 |
+| HTTP 상태코드 정합 | 생성/삭제가 바디엔 201/204인데 실제 응답은 200(`ResponseEntity.ok` 래핑) — 컨트롤러 전반 정리 필요 | - |
+| 이미지 다중 청첩장 | 같은 키를 여러 청첩장에 쓸 때 정책(현재는 재연결 거부) | ADR-009 |
+| ORPHANED 이미지 삭제 | 연결 끊긴 S3 객체 실삭제 배치 | ADR-001·ADR-009 |
+| S3 키의 내부 PK 노출 | 공개 presigned URL 경로에 소유자 userId 노출 — 키 포맷 변경 검토 | ADR-009 |
 | 소셜 로그인 토큰 전달 방식 | 콜백 후 리다이렉트 vs 교환 API | ADR-003 |
 | 다중 기기 세션 | refresh가 userId당 1개라 다기기 미지원 | ADR-004 |
-| presign 제약 조건 | 허용 content-type·최대 크기 | ADR-001 |
-| 삭제 시 이미지 정리 | 연결 S3 객체 정리 정책 | ADR-001 |
 | 페이지네이션 | 목록 API 페이징 규약 | - |
 
 ## 7. 참고
 - [ERD.md](./ERD.md) — 데이터 모델
 - [SA-service-analysis.md](./SA-service-analysis.md) §4 — 기능 정의서(우선순위)
-- [ADR-001](./adr/ADR-001-image-storage-s3-presigned.md) · [ADR-002](./adr/ADR-002-template-schema-jsonschema-jsonb.md) · [ADR-003](./adr/ADR-003-authentication-jwt-oauth2.md) · [ADR-004](./adr/ADR-004-refresh-token-redis.md)
+- [ADR-001](./adr/ADR-001-image-storage-s3-presigned.md) · [ADR-002](./adr/ADR-002-template-schema-jsonschema-jsonb.md) · [ADR-003](./adr/ADR-003-authentication-jwt-oauth2.md) · [ADR-004](./adr/ADR-004-refresh-token-redis.md) · [ADR-007](./adr/ADR-007-section-component-template-model.md) · [ADR-009](./adr/ADR-009-invitation-persistence-model.md)

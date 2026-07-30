@@ -18,7 +18,7 @@ import smally.server.core.jwt.JwtTokenProvider;
 /**
  * Spring Security 설정.
  * - 세션을 쓰지 않는 무상태(STATELESS) JWT 인증.
- * - 현재는 모든 요청 permitAll (엔드포인트 정비 후 인가 규칙을 좁힐 예정).
+ * - /api/invitation/** 은 인증 필요, /api/public/** 은 permitAll. 나머지 경로는 정비 전이라 permitAll.
  */
 @Configuration
 @EnableWebSecurity
@@ -41,6 +41,10 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // 하객은 계정이 없다(ADR-003).
+                        .requestMatchers("/api/public/**").permitAll()
+                        .requestMatchers("/api/invitation/**").authenticated()
+                        // 나머지 경로의 인가 규칙 정비는 별도 작업이다.
                         .anyRequest().permitAll())
                 .addFilterBefore(
                         new JwtAuthenticationFilter(jwtTokenProvider),

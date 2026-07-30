@@ -4,7 +4,7 @@
 > 엔티티 구현이 시작되어, 이 문서는 현재 코드(`domain/**/entity`)를 반영합니다.
 >
 > - 최초 작성일: 2026-07-01
-> - 최종 갱신일: 2026-07-13
+> - 최종 갱신일: 2026-07-21 (청첩장 저장 구현 반영 — ADR-009)
 > - 상태: 구현 반영 (일부 컬럼은 후속 ADR/구현에서 확정)
 > - RDB: PostgreSQL (`jsonb` 활용 — ADR-002)
 > - **Refresh 토큰은 RDB가 아닌 Redis에 저장한다(ADR-004).** 아래 RDB 스키마에는 포함하지 않는다.
@@ -17,6 +17,7 @@
 erDiagram
     users ||--o{ oauth_accounts : "소셜 계정 연결"
     users ||--o{ invitations : "제작/소유"
+    users ||--o{ image_uploads : "업로드"
     templates ||--o{ invitations : "사용"
     invitations ||--o{ image_uploads : "연결"
 
@@ -58,11 +59,13 @@ erDiagram
 
     invitations {
         bigint      invitation_id PK
+        uuid        invitation_uid UK "외부 노출용 식별자(불변)"
         bigint      user_id FK
         bigint      template_id FK
         varchar     slug UK "추측 불가 무작위 문자열(공개 URL, 발행 전 null)"
-        varchar     status "draft / published"
-        jsonb       section_values "섹션 입력값(사진은 S3 키/URL만)"
+        varchar     status "DRAFT / PUBLISHED"
+        jsonb       section_values "섹션 입력값(sectionId별, 사진은 S3 키만)"
+        jsonb       selected_options "사용자 선택 옵션(sectionId별)"
         timestamptz published_at "발행 시각(발행 전 null)"
         timestamptz created_at
         timestamptz updated_at
@@ -70,9 +73,10 @@ erDiagram
 
     image_uploads {
         bigint      image_upload_id PK
+        bigint      uploader_id FK "업로드한 사용자(NOT NULL)"
         bigint      invitation_id FK "확정 전 null 가능"
         varchar     object_key "S3 객체 키"
-        varchar     status "pending / linked (고아 정리용)"
+        varchar     status "PENDING / LINKED / ORPHANED"
         timestamptz created_at
         timestamptz updated_at
     }
@@ -158,44 +162,49 @@ RDB 테이블이 아니라 Redis 해시로 저장한다.
 - 카테고리 목록 관리용 테이블이다. **`templates.category`와는 의도적으로 연결하지 않는다**(FK 아님, 문자열 유지). 카테고리는 템플릿 생성 시점에만 들어오는 정보라 정규화가 불필요하다는 판단이다.
 
 ### 2.6 `invitations` — 사용자 청첩장
-근거: ADR-002, ADR-003. 코드: `domain/invitation/entity/dto/Invitation`.
+근거: ADR-002, ADR-003, **ADR-009**. 코드: `domain/invitation/entity/Invitation`.
 
 | 컬럼 | 타입 | 제약 | 설명 |
 |---|---|---|---|
-| `invitation_id` | bigint | PK (IDENTITY) | |
+| `invitation_id` | bigint | PK (IDENTITY) | 내부 PK, 외부 미노출 |
+| `invitation_uid` | uuid | UNIQUE, NOT NULL, 불변 | 외부 노출용 식별자(`@PrePersist`에서 시간순 UUID). 모든 편집 API가 이것을 쓴다 (ADR-009) |
 | `user_id` | bigint | FK → users, NOT NULL | 소유자 (`@ManyToOne LAZY`) |
 | `template_id` | bigint | FK → templates, NOT NULL | 선택한 템플릿 (`@ManyToOne LAZY`) |
-| `slug` | varchar | UNIQUE, NULL 허용 | **추측 불가 무작위 문자열**. 발행 시 발급 |
+| `slug` | varchar | UNIQUE, NULL 허용 | **추측 불가 무작위 문자열**. 발행 시 발급, 발행 취소해도 회수하지 않음 |
 | `status` | varchar(enum) | NOT NULL | `InvitationStatus`: `DRAFT` / `PUBLISHED` (기본 DRAFT) |
-| `section_values` | jsonb | | 섹션 입력값. 사진은 **S3 키/URL만** (ADR-001) |
+| `section_values` | jsonb | | 섹션 입력값. `sectionId`별로 키잉. 사진은 **S3 키만** (ADR-001·ADR-009) |
+| `selected_options` | jsonb | | 사용자가 고른 섹션 옵션. `{sectionId → {optionKey → 값}}` (ADR-009) |
 | `published_at` | timestamptz | NULL 허용 | 발행 시각 |
 | `created_at` / `updated_at` | timestamptz | NOT NULL | |
 
-- `section_values`는 정규화하지 않고 통째로 저장(ADR-002). 예:
+- `section_values`·`selected_options`는 정규화하지 않고 통째로 저장하며(ADR-002·ADR-009), **템플릿 섹션 인스턴스 식별자 `sectionId`로 키잉**한다(같은 컴포넌트를 여러 번 쓰는 조합을 구분하기 위함 — ADR-007·ADR-009). 예:
   ```json
   {
-    "cover":   { "groom_name": "…", "bride_name": "…", "date": "2026-10-10" },
-    "greeting":{ "greeting_text": "…" },
-    "gallery": { "photos": ["invitations/123/uuid1.jpg", "invitations/123/uuid2.jpg"] },
-    "account": { "groom_account": "…", "bride_account": "…" }
+    "section_values": {
+      "cover":     { "groomName": "…", "brideName": "…", "weddingAt": "2026-10-10T11:00:00" },
+      "gallery-1": { "photos": ["invitations/7/uuid1.jpg", "invitations/7/uuid2.jpg"] },
+      "account":   { "groom": {"bank": "…", "number": "…"} }
+    },
+    "selected_options": { "gallery-1": { "columns": 3 } }
   }
   ```
-- 저장(write) 시점에 `template.section_schema`로 검증 후 통과분만 저장(ADR-002).
+- 저장 시점에 검증한다(ADR-009). **임시저장(DRAFT)은 구조·권한만**(모르는 sectionId·허용 안 된 옵션·남의 이미지 거부), **발행(PUBLISHED)은 각 섹션이 참조하는 `Component.data_schema`로 완결성까지** 검증한다. 발행된 청첩장의 수정도 발행 수준으로 검증한다.
 - 공개 조회는 `status = PUBLISHED`인 경우만 노출(ADR-003).
 
 ### 2.7 `image_uploads` — 업로드 추적
-근거: ADR-001 (고아 객체 정리). 코드: `domain/image/entity/dto/ImageUpload`.
+근거: ADR-001 (고아 객체 정리), **ADR-009**. 코드: `domain/image/entity/ImageUpload`.
 
 | 컬럼 | 타입 | 제약 | 설명 |
 |---|---|---|---|
 | `image_upload_id` | bigint | PK (IDENTITY) | |
+| `uploader_id` | bigint | FK → users, NOT NULL | 업로드한 사용자 (`@ManyToOne LAZY`). 남의 이미지를 붙이는 것을 막는 소유 기준 (ADR-009) |
 | `invitation_id` | bigint | FK → invitations, NULL 허용 | 확정 전 미연결 (`@ManyToOne LAZY`) |
-| `object_key` | varchar | NOT NULL | S3 객체 키 |
-| `status` | varchar(enum) | NOT NULL | `ImageStatus`: `PENDING` / `LINKED` (기본 PENDING) |
+| `object_key` | varchar | NOT NULL | S3 객체 키 (`invitations/{userId}/{uuid}.{ext}`) |
+| `status` | varchar(enum) | NOT NULL | `ImageStatus`: `PENDING` / `LINKED` / `ORPHANED` (기본 PENDING) |
 | `created_at` / `updated_at` | timestamptz | NOT NULL | `BaseEntity` 공통 (JPA Auditing) |
 
-- 사진 키는 `invitations.section_values` 안에도 들어가지만, ADR-001의 **고아 객체(orphan) 정리**를 위해 발급 키를 추적한다.
-- S3 lifecycle 규칙과의 역할 분담은 ADR-001 후속 과제.
+- 업로드 시 `PENDING`으로 기록되고, 청첩장 저장 시 값에 등장하면 그 청첩장으로 `LINKED` 확정된다. 값에서 빠지거나 청첩장이 삭제되면 `ORPHANED`가 된다. 실제 S3 삭제는 후속 배치의 몫이다(ADR-001·ADR-009 후속).
+- 사진 키는 `invitations.section_values` 안에도 들어가지만, 서버는 필드 위치를 모른 채 값을 재귀 순회해 `invitations/` 프리픽스로 키를 수집·연결한다(ADR-009).
 
 ---
 
@@ -206,7 +215,8 @@ RDB 테이블이 아니라 Redis 해시로 저장한다.
 | users — invitations | 1 : N | 한 사용자가 여러 청첩장을 만든다 |
 | templates — invitations | 1 : N | 한 템플릿을 여러 청첩장이 사용한다 |
 | users — oauth_accounts | 1 : N | 한 사용자가 여러 소셜을 연결할 수 있다 |
-| invitations — image_uploads | 1 : N | 청첩장에 연결된 업로드 이미지 |
+| invitations — image_uploads | 1 : N | 청첩장에 연결된 업로드 이미지 (확정 전 null) |
+| users — image_uploads | 1 : N | 이미지를 업로드한 사용자 (소유 검증 기준) |
 | (templates — category) | — | **의도적 비연결.** `templates.category`는 문자열이며 `category` 테이블을 참조하지 않는다(정규화 불필요 판단) |
 
 > refresh 토큰은 Redis에 저장하므로 RDB 관계에 포함하지 않는다(ADR-004).

@@ -73,7 +73,7 @@ class TemplateServiceImplTest {
     @Test
     void createTemplate_섹션에_componentUId가_없으면_INVALID_TEMPLATE_RECIPE() {
         assertThatThrownBy(() -> service.createTemplate(
-                request(List.of(Map.of("options", Map.of("titleSize", "L"))), null), thumb()))
+                request(List.of(Map.of("sectionId", "section-1")), null), thumb()))
                 .isInstanceOf(TemplateException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_TEMPLATE_RECIPE);
 
@@ -86,7 +86,7 @@ class TemplateServiceImplTest {
                 .when(componentService).getComponent("NoSuchComponent");
 
         assertThatThrownBy(() -> service.createTemplate(
-                request(List.of(Map.of("componentUId", "NoSuchComponent")), null), thumb()))
+                request(List.of(Map.of("sectionId", "section-1", "componentUId", "NoSuchComponent")), null), thumb()))
                 .isInstanceOf(ComponentException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.COMPONENT_NOT_FOUND);
 
@@ -99,7 +99,7 @@ class TemplateServiceImplTest {
                 .when(optionDefinitionService).getOptionDefinition("fontSize");
 
         assertThatThrownBy(() -> service.createTemplate(
-                request(List.of(Map.of("componentUId", "GalleryGrid")), Map.of("fontSize", "large")), thumb()))
+                request(List.of(Map.of("sectionId", "section-1", "componentUId", "GalleryGrid")), Map.of("fontSize", "large")), thumb()))
                 .isInstanceOf(OptionDefinitionException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.OPTION_DEFINITION_NOT_FOUND);
 
@@ -115,7 +115,7 @@ class TemplateServiceImplTest {
         when(optionDefinitionService.getOptionDefinition("fontSize")).thenReturn(fontSize);
 
         assertThatThrownBy(() -> service.createTemplate(
-                request(List.of(Map.of("componentUId", "GalleryGrid")), Map.of("fontSize", "huge")), thumb()))
+                request(List.of(Map.of("sectionId", "section-1", "componentUId", "GalleryGrid")), Map.of("fontSize", "huge")), thumb()))
                 .isInstanceOf(TemplateException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_TEMPLATE_THEME);
 
@@ -130,7 +130,7 @@ class TemplateServiceImplTest {
                 .thenReturn("https://signed/x");
 
         TemplateResponse response = service.createTemplate(
-                request(List.of(Map.of("componentUId", "GalleryGrid")), null), thumb());
+                request(List.of(Map.of("sectionId", "section-1", "componentUId", "GalleryGrid")), null), thumb());
 
         org.mockito.ArgumentCaptor<Template> captor = org.mockito.ArgumentCaptor.forClass(Template.class);
         verify(templateRepository).save(captor.capture());

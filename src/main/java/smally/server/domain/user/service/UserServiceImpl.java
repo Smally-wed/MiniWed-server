@@ -33,6 +33,13 @@ public class UserServiceImpl implements UserService, InternalUserService {
 
     @Override
     @Transactional(readOnly = true)
+    public User getUserIfExist(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new UserException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public UserResponse getUser(Long userId) {
         return userRepository.findById(userId)
                 .map(UserResponse::from)
